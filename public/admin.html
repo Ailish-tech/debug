@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Captain's Quarters — Admin dashboard for Dead Man's Debug competition">
+  <title>Captain's Quarters — Dead Man's Debug</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="ocean-bg">
+    <div class="stars"></div>
+    <div class="wave"></div>
+    <div class="wave"></div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a class="navbar-brand" href="/admin">
+      <span class="skull">☠️</span>
+      <h1>Captain's Quarters</h1>
+    </a>
+    <div class="navbar-info">
+      <div class="navbar-badge" id="roundStatusBadge">
+        <span class="round-status-dot idle" id="navRoundDot"></span>
+        <span id="navRoundText">No Active Round</span>
+      </div>
+      <div class="navbar-badge" id="participantCountBadge">
+        👥 <span id="navParticipantCount">0</span> Crew
+      </div>
+      <a href="/leaderboard" class="btn btn-sm" target="_blank">🏆 Leaderboard</a>
+      <button class="btn btn-sm btn-danger" onclick="logout()">🚪 Abandon Ship</button>
+    </div>
+  </nav>
+
+  <!-- Main Layout -->
+  <div class="layout-sidebar">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Navigation</div>
+        <div class="sidebar-item active" data-section="dashboard" onclick="showSection('dashboard')">
+          <span class="sidebar-icon">📊</span> Dashboard
+        </div>
+        <div class="sidebar-item" data-section="challenges" onclick="showSection('challenges')">
+          <span class="sidebar-icon">🗡️</span> Challenges
+          <span class="sidebar-count" id="sidebarChallengeCount">0</span>
+        </div>
+        <div class="sidebar-item" data-section="rounds" onclick="showSection('rounds')">
+          <span class="sidebar-icon">⏱️</span> Round Control
+        </div>
+        <div class="sidebar-item" data-section="participants" onclick="showSection('participants')">
+          <span class="sidebar-icon">👥</span> Crew Members
+          <span class="sidebar-count" id="sidebarCrewCount">0</span>
+        </div>
+        <div class="sidebar-item" data-section="submissions" onclick="showSection('submissions')">
+          <span class="sidebar-icon">📜</span> Submissions
+          <span class="sidebar-count" id="sidebarSubCount">0</span>
+        </div>
+      </div>
+      <div class="sidebar-section" style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
+        <div class="sidebar-label">Quick Actions</div>
+        <div class="sidebar-item" onclick="sendAnnouncement()">
+          <span class="sidebar-icon">📢</span> Announce
+        </div>
+        <div class="sidebar-item" onclick="confirmResetAll()" style="color: var(--danger);">
+          <span class="sidebar-icon">💣</span> Reset All
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- ============ DASHBOARD SECTION ============ -->
+      <section id="section-dashboard">
+        <div class="page-header">
+          <h2>📊 Command Deck</h2>
+          <button class="btn btn-sm" onclick="refreshDashboard()">🔄 Refresh</button>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-4 mb-lg">
+          <div class="stat-card">
+            <div class="stat-icon gold">👥</div>
+            <div class="stat-info">
+              <h4>Crew Members</h4>
+              <div class="stat-value" id="statParticipants">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">🗡️</div>
+            <div class="stat-info">
+              <h4>Challenges</h4>
+              <div class="stat-value" id="statChallenges">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">📜</div>
+            <div class="stat-info">
+              <h4>Submissions</h4>
+              <div class="stat-value" id="statSubmissions">0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red">✅</div>
+            <div class="stat-info">
+              <h4>Successful</h4>
+              <div class="stat-value" id="statSuccessful">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Round Controls Quick -->
+        <div class="grid grid-2 mb-lg">
+          <div class="card" id="round1Card">
+            <div class="card-header">
+              <h3>⚔️ Round 1 — The First Fix</h3>
+              <span class="badge badge-idle" id="round1Badge">Idle</span>
+            </div>
+            <p class="text-muted mb-md">Easy – Moderate • 2 Attempts</p>
+            <div class="flex gap-sm">
+              <button class="btn btn-success btn-sm" onclick="startRound(1)" id="r1StartBtn">▶️ Start</button>
+              <button class="btn btn-danger btn-sm" onclick="stopRound(1)" id="r1StopBtn" disabled>⏹ End</button>
+              <button class="btn btn-sm" onclick="resetRound(1)">🔄 Reset</button>
+            </div>
+          </div>
+          <div class="card" id="round2Card">
+            <div class="card-header">
+              <h3>💀 Round 2 — The Final Debug</h3>
+              <span class="badge badge-idle" id="round2Badge">Idle</span>
+            </div>
+            <p class="text-muted mb-md">Moderate – Hard • 4 Attempts</p>
+            <div class="flex gap-sm">
+              <button class="btn btn-success btn-sm" onclick="startRound(2)" id="r2StartBtn">▶️ Start</button>
+              <button class="btn btn-danger btn-sm" onclick="stopRound(2)" id="r2StopBtn" disabled>⏹ End</button>
+              <button class="btn btn-sm" onclick="resetRound(2)">🔄 Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Feed -->
+        <div class="card">
+          <div class="card-header">
+            <h3>📡 Live Submission Feed</h3>
+            <span class="badge badge-gold" id="liveFeedCount">0 submissions</span>
+          </div>
+          <div class="submission-feed" id="liveFeed">
+            <div class="empty-state">
+              <div class="empty-icon">⏳</div>
+              <h3>Awaiting Submissions</h3>
+              <p>Submissions will appear here in real-time once a round begins.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CHALLENGES SECTION ============ -->
+      <section id="section-challenges" class="hidden">
+        <div class="page-header">
+          <h2>🗡️ Challenges</h2>
+          <button class="btn btn-gold" onclick="openChallengeModal()">➕ Create Challenge</button>
+        </div>
+
+        <!-- AI Challenge Generator Panel -->
+        <div class="card mb-lg" style="border-color: var(--gold); background: rgba(240,192,64,0.05);">
+          <div class="card-header">
+            <h3>🤖 Agentic AI Challenge Generator</h3>
+          </div>
+          <p class="text-muted mb-md" style="font-size: 0.9rem;">
+            Let the AI curate and generate C debugging challenges automatically. It will set the buggy code, expected output, hints, and assign them to the rounds.
+          </p>
+          <div class="grid grid-2">
+            <div class="input-group">
+              <label>Round 1 Questions (Max: <span id="r1MaxAvailable">15</span>)</label>
+              <input type="number" id="aiRound1Count" value="3" min="0" max="15">
+            </div>
+            <div class="input-group">
+              <label>Round 2 Questions (Max: <span id="r2MaxAvailable">15</span>)</label>
+              <input type="number" id="aiRound2Count" value="2" min="0" max="15">
+            </div>
+          </div>
+          <button class="btn btn-gold mt-md" onclick="generateAIChallenges()" id="btnGenerateAI">
+            ✨ Generate AI Challenges
+          </button>
+        </div>
+
+        <!-- Challenge Filter Tabs -->
+        <div class="tabs">
+          <button class="tab active" onclick="filterChallenges('all', this)">All</button>
+          <button class="tab" onclick="filterChallenges(1, this)">Round 1</button>
+          <button class="tab" onclick="filterChallenges(2, this)">Round 2</button>
+        </div>
+
+        <div id="challengeList">
+          <div class="empty-state">
+            <div class="empty-icon">🗡️</div>
+            <h3>No Challenges Yet</h3>
+            <p>Create your first debugging challenge to get started!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ROUNDS SECTION ============ -->
+      <section id="section-rounds" class="hidden">
+        <div class="page-header">
+          <h2>⏱️ Round Control</h2>
+        </div>
+
+        <div class="grid grid-2 mb-lg">
+          <!-- Round 1 Control -->
+          <div class="card">
+            <div class="card-header">
+              <h3>⚔️ Round 1</h3>
+              <span class="badge" id="r1DetailBadge">Idle</span>
+            </div>
+            <div class="input-group">
+              <label>Round Name</label>
+              <input type="text" id="r1Name" value="The First Fix" placeholder="Round name">
+            </div>
+            <div class="grid grid-2">
+              <div class="input-group">
+                <label>Duration (minutes)</label>
+                <input type="number" id="r1Duration" value="45" min="1" max="180">
+              </div>
+              <div class="input-group">
+                <label>Max Attempts</label>
+                <input type="number" id="r1Attempts" value="2" min="1" max="10">
+              </div>
+            </div>
+            <div class="flex gap-sm mt-md">
+              <button class="btn btn-success" onclick="startRound(1)">▶️ Start Round</button>
+              <button class="btn btn-danger" onclick="stopRound(1)">⏹ End Round</button>
+              <button class="btn" onclick="updateRound(1)">💾 Save Settings</button>
+            </div>
+            <p class="text-muted mt-md" style="font-size:0.8rem;">
+              Challenges assigned: <strong id="r1ChallengeCount">0</strong>
+            </p>
+          </div>
+
+          <!-- Round 2 Control -->
+          <div class="card">
+            <div class="card-header">
+              <h3>💀 Round 2</h3>
+              <span class="badge" id="r2DetailBadge">Idle</span>
+            </div>
+            <div class="input-group">
+              <label>Round Name</label>
+              <input type="text" id="r2Name" value="The Final Debug" placeholder="Round name">
+            </div>
+            <div class="grid grid-2">
+              <div class="input-group">
+                <label>Duration (minutes)</label>
+                <input type="number" id="r2Duration" value="45" min="1" max="180">
+              </div>
+              <div class="input-group">
+                <label>Max Attempts</label>
+                <input type="number" id="r2Attempts" value="4" min="1" max="10">
+              </div>
+            </div>
+            <div class="flex gap-sm mt-md">
+              <button class="btn btn-success" onclick="startRound(2)">▶️ Start Round</button>
+              <button class="btn btn-danger" onclick="stopRound(2)">⏹ End Round</button>
+              <button class="btn" onclick="updateRound(2)">💾 Save Settings</button>
+            </div>
+            <p class="text-muted mt-md" style="font-size:0.8rem;">
+              Challenges assigned: <strong id="r2ChallengeCount">0</strong>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PARTICIPANTS SECTION ============ -->
+      <section id="section-participants" class="hidden">
+        <div class="page-header">
+          <h2>👥 Crew Members</h2>
+          <button class="btn btn-sm" onclick="loadParticipants()">🔄 Refresh</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Pirate Name</th>
+                <th>Crew</th>
+                <th>Submissions</th>
+                <th>Solved</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="participantTable">
+              <tr><td colspan="7" class="text-center text-muted" style="padding:40px;">No crew members yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ SUBMISSIONS SECTION ============ -->
+      <section id="section-submissions" class="hidden">
+        <div class="page-header">
+          <h2>📜 All Submissions</h2>
+          <button class="btn btn-sm" onclick="loadSubmissions()">🔄 Refresh</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Pirate</th>
+                <th>Challenge</th>
+                <th>Attempt</th>
+                <th>Status</th>
+                <th>Tests</th>
+                <th>Score</th>
+                <th>Time (ms)</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="submissionTable">
+              <tr><td colspan="8" class="text-center text-muted" style="padding:40px;">No submissions yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ============ CHALLENGE MODAL ============ -->
+  <div class="modal-overlay hidden" id="challengeModal">
+    <div class="modal" style="max-width: 900px;">
+      <div class="modal-header">
+        <h2 id="modalTitle">🗡️ Create Challenge</h2>
+        <button class="modal-close" onclick="closeChallengeModal()">✕</button>
+      </div>
+      <form id="challengeForm">
+        <input type="hidden" id="challengeEditId">
+        <div class="grid grid-2">
+          <div class="input-group">
+            <label>Challenge Title</label>
+            <input type="text" id="chTitle" placeholder="e.g. The Broken Compass" required>
+          </div>
+          <div class="input-group">
+            <label>Language</label>
+            <select id="chLang" required>
+              <option value="c">C</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Description</label>
+          <textarea id="chDesc" rows="2" placeholder="Describe what the program should do..."></textarea>
+        </div>
+        <div class="input-group">
+          <label>Buggy Code (this is shown to participants)</label>
+          <textarea id="chCode" rows="12" placeholder="Paste the buggy code here..." required style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;"></textarea>
+        </div>
+        <div class="grid grid-3">
+          <div class="input-group">
+            <label>Round</label>
+            <select id="chRound" required>
+              <option value="1">Round 1 — The First Fix</option>
+              <option value="2">Round 2 — The Final Debug</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Difficulty</label>
+            <select id="chDifficulty">
+              <option value="easy">Easy</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Time Limit (seconds)</label>
+            <input type="number" id="chTimeLimit" value="10" min="1" max="30">
+          </div>
+        </div>
+
+        <!-- Test Cases -->
+        <div class="mb-md">
+          <div class="flex items-center justify-between mb-sm">
+            <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+              Test Cases
+            </label>
+            <button type="button" class="btn btn-sm btn-gold" onclick="addTestCase()">+ Add Test Case</button>
+          </div>
+          <div id="testCaseContainer">
+            <div class="test-case-row grid grid-2 gap-sm mb-sm" data-idx="0">
+              <div class="input-group" style="margin-bottom:0;">
+                <label style="font-size:0.75rem;">Input (stdin)</label>
+                <textarea class="tc-input" rows="2" placeholder="Input (leave empty if none)"></textarea>
+              </div>
+              <div class="input-group" style="margin-bottom:0;">
+                <label style="font-size:0.75rem;">Expected Output</label>
+                <textarea class="tc-output" rows="2" placeholder="Expected output" required></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hints -->
+        <div class="input-group">
+          <label>Hints (one per line, optional)</label>
+          <textarea id="chHints" rows="3" placeholder="Check the loop condition&#10;Variable scope issue&#10;Off-by-one error"></textarea>
+        </div>
+
+        <div class="flex gap-md mt-lg">
+          <button type="submit" class="btn btn-gold btn-lg" id="challengeSubmitBtn">
+            🗡️ Create Challenge
+          </button>
+          <button type="button" class="btn btn-lg" onclick="closeChallengeModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ ANNOUNCEMENT MODAL ============ -->
+  <div class="modal-overlay hidden" id="announceModal">
+    <div class="modal" style="max-width:500px;">
+      <div class="modal-header">
+        <h2>📢 Send Announcement</h2>
+        <button class="modal-close" onclick="document.getElementById('announceModal').classList.add('hidden')">✕</button>
+      </div>
+      <div class="input-group">
+        <label>Message to all pirates</label>
+        <textarea id="announceMsg" rows="3" placeholder="Arr! Listen up, ye scallywags..."></textarea>
+      </div>
+      <button class="btn btn-gold btn-lg w-full" onclick="doAnnounce()">📢 Send to All</button>
+    </div>
+  </div>
+
+  <script>
+    // ============ GLOBALS ============
+    const TOKEN = localStorage.getItem('dmd_token');
+    if (!TOKEN || localStorage.getItem('dmd_type') !== 'admin') {
+      window.location.href = '/';
+    }
+
+    const API = (url, opts = {}) => fetch(url, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN, ...opts.headers }
+    }).then(async r => {
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (r.status === 401) {
+          localStorage.clear();
+          window.location.href = '/';
+          return;
+        }
+        throw new Error(d.error || 'Request failed');
+      }
+      return d;
+    });
+
+    let allChallenges = [];
+    let liveFeedItems = [];
+    let currentFilter = 'all';
+
+    // ============ SOCKET.IO ============
+    const socket = io();
+    socket.emit('join', { room: 'admin', token: TOKEN });
+
+    socket.on('participant:joined', (p) => {
+      toast('success', `🏴‍☠️ ${p.name} joined the crew!`);
+      refreshDashboard();
+    });
+
+    socket.on('submission:new', (sub) => {
+      addToLiveFeed(sub);
+      updateSidebarCount('Sub', document.querySelectorAll('#liveFeed .submission-item').length);
+      toast(sub.status === 'passed' ? 'success' : 'warning',
+        `${sub.participantName} ${sub.status === 'passed' ? '✅ solved' : '❌ failed'} "${sub.challengeTitle}"`);
+    });
+
+    socket.on('round:ended', (data) => {
+      toast('info', `Round ${data.roundId} — "${data.name}" has ended!`);
+      refreshDashboard();
+    });
+
+    socket.on('leaderboard:update', () => refreshDashboard());
+
+    // ============ SECTION NAVIGATION ============
+    function showSection(name) {
+      document.querySelectorAll('.main-content > section').forEach(s => s.classList.add('hidden'));
+      document.getElementById('section-' + name).classList.remove('hidden');
+      document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+      document.querySelector(`.sidebar-item[data-section="${name}"]`).classList.add('active');
+
+      if (name === 'challenges') {
+        loadChallenges();
+        loadAIPoolInfo();
+      }
+      if (name === 'participants') loadParticipants();
+      if (name === 'submissions') loadSubmissions();
+      if (name === 'rounds') loadRounds();
+    }
+
+    // ============ DASHBOARD ============
+    async function refreshDashboard() {
+      try {
+        const stats = await API('/api/admin/stats');
+        document.getElementById('statParticipants').textContent = stats.totalParticipants;
+        document.getElementById('statChallenges').textContent = stats.totalChallenges;
+        document.getElementById('statSubmissions').textContent = stats.totalSubmissions;
+        document.getElementById('statSuccessful').textContent = stats.successfulSubmissions;
+        document.getElementById('navParticipantCount').textContent = stats.totalParticipants;
+        document.getElementById('sidebarCrewCount').textContent = stats.totalParticipants;
+        document.getElementById('sidebarChallengeCount').textContent = stats.totalChallenges;
+
+        // Update round badges
+        for (const rid of [1, 2]) {
+          const r = stats.rounds[rid];
+          updateRoundBadge(rid, r.status);
+        }
+
+        if (stats.activeRound) {
+          document.getElementById('navRoundDot').className = 'round-status-dot active';
+          document.getElementById('navRoundText').textContent = `Round ${stats.activeRound} Active`;
+        } else {
+          document.getElementById('navRoundDot').className = 'round-status-dot idle';
+          document.getElementById('navRoundText').textContent = 'No Active Round';
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function updateRoundBadge(rid, status) {
+      const badge = document.getElementById(`round${rid}Badge`);
+      const startBtn = document.getElementById(`r${rid}StartBtn`);
+      const stopBtn = document.getElementById(`r${rid}StopBtn`);
+
+      badge.className = 'badge';
+      if (status === 'active') {
+        badge.classList.add('badge-success');
+        badge.textContent = '🟢 Active';
+        if (startBtn) startBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = false;
+      } else if (status === 'ended') {
+        badge.classList.add('badge-danger');
+        badge.textContent = '🔴 Ended';
+        if (startBtn) startBtn.disabled = true;
+        if (stopBtn) stopBtn.disabled = true;
+      } else {
+        badge.classList.add('badge-idle');
+        badge.textContent = '⚪ Idle';
+        if (startBtn) startBtn.disabled = false;
+        if (stopBtn) stopBtn.disabled = true;
+      }
+    }
+
+    // ============ LIVE FEED ============
+    function addToLiveFeed(sub) {
+      const feed = document.getElementById('liveFeed');
+      // Remove empty state
+      const empty = feed.querySelector('.empty-state');
+      if (empty) empty.remove();
+
+      const item = document.createElement('div');
+      item.className = 'submission-item';
+      item.innerHTML = `
+        <div class="submission-avatar">${sub.status === 'passed' ? '✅' : '❌'}</div>
+        <div class="submission-info">
+          <div class="sub-name">${escHtml(sub.participantName)}</div>
+          <div class="sub-detail">${escHtml(sub.challengeTitle)} — Attempt #${sub.attempt}</div>
+        </div>
+        <span class="badge ${sub.status === 'passed' ? 'badge-success' : 'badge-danger'}">${sub.status}</span>
+        <span class="submission-time">${sub.score || 0} pts</span>
+      `;
+      feed.insertBefore(item, feed.firstChild);
+
+      const count = feed.querySelectorAll('.submission-item').length;
+      document.getElementById('liveFeedCount').textContent = count + ' submissions';
+      document.getElementById('sidebarSubCount').textContent = count;
+    }
+
+    // ============ CHALLENGES ============
+    async function loadChallenges() {
+      try {
+        allChallenges = await API('/api/admin/challenges');
+        document.getElementById('sidebarChallengeCount').textContent = allChallenges.length;
+        renderChallenges();
+      } catch (err) { toast('error', err.message); }
+    }
+
+    function filterChallenges(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('#section-challenges .tab').forEach(t => t.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      renderChallenges();
+    }
+
+    function renderChallenges() {
+      const list = document.getElementById('challengeList');
+      let filtered = allChallenges;
+      if (currentFilter !== 'all') {
+        filtered = allChallenges.filter(c => c.round == currentFilter);
+      }
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-icon">🗡️</div><h3>No Challenges</h3><p>Create a challenge to get started!</p></div>`;
+        return;
+      }
+
+      list.innerHTML = filtered.map((c, i) => `
+        <div class="challenge-list-item">
+          <div class="cl-number">${i + 1}</div>
+          <div class="cl-info">
+            <div class="cl-title">${escHtml(c.title)}</div>
+            <div class="cl-lang">${c.language} • Round ${c.round} • ${c.difficulty} • ${c.testCases?.length || 0} tests</div>
+          </div>
+          <span class="badge badge-${c.difficulty === 'easy' ? 'success' : c.difficulty === 'hard' ? 'danger' : 'warning'}">${c.difficulty}</span>
+          <div class="cl-actions">
+            <button class="btn btn-sm" onclick="editChallenge('${c.id}')">✏️ Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteChallenge('${c.id}', '${escHtml(c.title)}')">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ============ AI GENERATOR ============
+    async function loadAIPoolInfo() {
+      try {
+        const info = await API('/api/admin/ai-pool-info');
+        document.getElementById('r1MaxAvailable').textContent = info.round1Available;
+        document.getElementById('r2MaxAvailable').textContent = info.round2Available;
+        document.getElementById('aiRound1Count').max = info.round1Available;
+        document.getElementById('aiRound2Count').max = info.round2Available;
+      } catch (err) { console.error('AI Pool info failed', err); }
+    }
+
+    async function generateAIChallenges() {
+      const btn = document.getElementById('btnGenerateAI');
+      const r1 = document.getElementById('aiRound1Count').value;
+      const r2 = document.getElementById('aiRound2Count').value;
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Generating...';
+
+      try {
+        const res = await API('/api/admin/ai-generate', {
+          method: 'POST',
+          body: JSON.stringify({ round1Count: r1, round2Count: r2 })
+        });
+        toast('success', res.message);
+        loadChallenges(); // refresh list
+      } catch (err) {
+        toast('error', err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ Generate AI Challenges';
+      }
+    }
+
+    // ============ CHALLENGE MODAL ============
+    function openChallengeModal(editId = null) {
+      document.getElementById('challengeModal').classList.remove('hidden');
+      document.getElementById('challengeEditId').value = editId || '';
+      document.getElementById('modalTitle').textContent = editId ? '✏️ Edit Challenge' : '🗡️ Create Challenge';
+      document.getElementById('challengeSubmitBtn').textContent = editId ? '💾 Update Challenge' : '🗡️ Create Challenge';
+
+      if (!editId) {
+        document.getElementById('challengeForm').reset();
+        document.getElementById('testCaseContainer').innerHTML = `
+          <div class="test-case-row grid grid-2 gap-sm mb-sm" data-idx="0">
+            <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.75rem;">Input (stdin)</label><textarea class="tc-input" rows="2" placeholder="Input (leave empty if none)"></textarea></div>
+            <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.75rem;">Expected Output</label><textarea class="tc-output" rows="2" placeholder="Expected output" required></textarea></div>
+          </div>`;
+      }
+    }
+
+    function closeChallengeModal() {
+      document.getElementById('challengeModal').classList.add('hidden');
+    }
+
+    async function editChallenge(id) {
+      try {
+        const ch = await API(`/api/admin/challenges/${id}`);
+        openChallengeModal(id);
+        document.getElementById('chTitle').value = ch.title;
+        document.getElementById('chDesc').value = ch.description || '';
+        document.getElementById('chCode').value = ch.buggyCode;
+        document.getElementById('chLang').value = ch.language;
+        document.getElementById('chRound').value = ch.round;
+        document.getElementById('chDifficulty').value = ch.difficulty;
+        document.getElementById('chTimeLimit').value = ch.timeLimit || 10;
+        document.getElementById('chHints').value = (ch.hints || []).join('\n');
+
+        // Populate test cases
+        const container = document.getElementById('testCaseContainer');
+        container.innerHTML = '';
+        (ch.testCases || []).forEach((tc, i) => {
+          container.innerHTML += `
+            <div class="test-case-row grid grid-2 gap-sm mb-sm" data-idx="${i}" style="position:relative;">
+              <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.75rem;">Input</label><textarea class="tc-input" rows="2">${escHtml(tc.input || '')}</textarea></div>
+              <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.75rem;">Expected Output</label><textarea class="tc-output" rows="2" required>${escHtml(tc.expectedOutput || tc.output || '')}</textarea></div>
+              ${i > 0 ? `<button type="button" onclick="this.parentElement.remove()" style="position:absolute;top:-8px;right:-8px;background:var(--danger);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:0.8rem;">✕</button>` : ''}
+            </div>`;
+        });
+      } catch (err) { toast('error', err.message); }
+    }
+
+    function addTestCase() {
+      const container = document.getElementById('testCaseContainer');
+      const idx = container.children.length;
+      const row = document.createElement('div');
+      row.className = 'test-case-row grid grid-2 gap-sm mb-sm';
+      row.style.position = 'relative';
+      row.dataset.idx = idx;
+      row.innerHTML = `
+        <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.75rem;">Input</label><textarea class="tc-input" rows="2" placeholder="Input"></textarea></div>
+        <div class="input-group" style="margin-bottom:0;"><label style="font-size:0.75rem;">Expected Output</label><textarea class="tc-output" rows="2" placeholder="Expected output" required></textarea></div>
+        <button type="button" onclick="this.parentElement.remove()" style="position:absolute;top:-8px;right:-8px;background:var(--danger);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:0.8rem;">✕</button>
+      `;
+      container.appendChild(row);
+    }
+
+    // ============ CHALLENGE FORM SUBMIT ============
+    document.getElementById('challengeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('challengeEditId').value;
+
+      // Gather test cases
+      const testCases = [];
+      document.querySelectorAll('.test-case-row').forEach(row => {
+        const input = row.querySelector('.tc-input').value;
+        const output = row.querySelector('.tc-output').value;
+        if (output.trim()) testCases.push({ input, expectedOutput: output });
+      });
+
+      if (testCases.length === 0) {
+        toast('error', 'Add at least one test case!');
+        return;
+      }
+
+      const hints = document.getElementById('chHints').value.split('\n').filter(h => h.trim());
+
+      const payload = {
+        title: document.getElementById('chTitle').value,
+        description: document.getElementById('chDesc').value,
+        buggyCode: document.getElementById('chCode').value,
+        language: document.getElementById('chLang').value,
+        round: parseInt(document.getElementById('chRound').value),
+        difficulty: document.getElementById('chDifficulty').value,
+        timeLimit: parseInt(document.getElementById('chTimeLimit').value),
+        testCases,
+        hints
+      };
+
+      try {
+        if (editId) {
+          await API(`/api/admin/challenges/${editId}`, { method: 'PUT', body: JSON.stringify(payload) });
+          toast('success', 'Challenge updated!');
+        } else {
+          await API('/api/admin/challenges', { method: 'POST', body: JSON.stringify(payload) });
+          toast('success', 'Challenge created!');
+        }
+        closeChallengeModal();
+        loadChallenges();
+        refreshDashboard();
+      } catch (err) { toast('error', err.message); }
+    });
+
+    async function deleteChallenge(id, title) {
+      if (!confirm(`Delete challenge "${title}"? This cannot be undone!`)) return;
+      try {
+        await API(`/api/admin/challenges/${id}`, { method: 'DELETE' });
+        toast('success', 'Challenge deleted!');
+        loadChallenges();
+        refreshDashboard();
+      } catch (err) { toast('error', err.message); }
+    }
+
+    // ============ ROUNDS ============
+    async function loadRounds() {
+      try {
+        const data = await API('/api/admin/rounds');
+        for (const rid of [1, 2]) {
+          const r = data.rounds[rid];
+          document.getElementById(`r${rid}Name`).value = r.name;
+          document.getElementById(`r${rid}Duration`).value = r.duration / 60000;
+          document.getElementById(`r${rid}Attempts`).value = r.maxAttempts;
+          document.getElementById(`r${rid}ChallengeCount`).textContent = r.challengeIds.length;
+          const badge = document.getElementById(`r${rid}DetailBadge`);
+          badge.className = 'badge';
+          badge.classList.add(r.status === 'active' ? 'badge-success' : r.status === 'ended' ? 'badge-danger' : 'badge-idle');
+          badge.textContent = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+        }
+      } catch (err) { toast('error', err.message); }
+    }
+
+    async function startRound(rid) {
+      const durationEl = document.getElementById(`r${rid}Duration`);
+      const duration = durationEl ? parseInt(durationEl.value) : 45;
+      if (!confirm(`Start Round ${rid}? Duration: ${duration} minutes.`)) return;
+      try {
+        const res = await API(`/api/admin/rounds/${rid}/start`, {
+          method: 'POST', body: JSON.stringify({ duration })
+        });
+        toast('success', res.message);
+        refreshDashboard();
+        if (document.getElementById('section-rounds').offsetParent !== null) loadRounds();
+      } catch (err) { toast('error', err.message); }
+    }
+
+    async function stopRound(rid) {
+      if (!confirm(`End Round ${rid}? This will lock all submissions.`)) return;
+      try {
+        const res = await API(`/api/admin/rounds/${rid}/stop`, { method: 'POST' });
+        toast('success', res.message);
+        refreshDashboard();
+        if (document.getElementById('section-rounds').offsetParent !== null) loadRounds();
+      } catch (err) { toast('error', err.message); }
+    }
+
+    async function resetRound(rid) {
+      if (!confirm(`Reset Round ${rid}? This will clear all submissions for this round!`)) return;
+      try {
+        await API(`/api/admin/rounds/${rid}/reset`, { method: 'POST' });
+        toast('success', `Round ${rid} reset.`);
+        refreshDashboard();
+      } catch (err) { toast('error', err.message); }
+    }
+
+    async function updateRound(rid) {
+      try {
+        await API(`/api/admin/rounds/${rid}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: document.getElementById(`r${rid}Name`).value,
+            duration: parseInt(document.getElementById(`r${rid}Duration`).value),
+            maxAttempts: parseInt(document.getElementById(`r${rid}Attempts`).value)
+          })
+        });
+        toast('success', `Round ${rid} settings saved!`);
+      } catch (err) { toast('error', err.message); }
+    }
+
+    // ============ PARTICIPANTS ============
+    async function loadParticipants() {
+      try {
+        const participants = await API('/api/admin/participants');
+        const tbody = document.getElementById('participantTable');
+        if (participants.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:40px;">No crew members yet</td></tr>';
+          return;
+        }
+        tbody.innerHTML = participants.map((p, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td><strong>${escHtml(p.name)}</strong></td>
+            <td class="text-muted">${escHtml(p.teamName)}</td>
+            <td>${p.submissionCount || 0}</td>
+            <td><span class="text-success">${p.solvedCount || 0}</span></td>
+            <td class="text-muted" style="font-size:0.8rem;">${new Date(p.createdAt).toLocaleTimeString()}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="removeParticipant('${p.id}', '${escHtml(p.name)}')">🗑️</button></td>
+          </tr>
+        `).join('');
+      } catch (err) { toast('error', err.message); }
+    }
+
+    async function removeParticipant(id, name) {
+      if (!confirm(`Remove ${name} from the crew?`)) return;
+      try {
+        await API(`/api/admin/participants/${id}`, { method: 'DELETE' });
+        toast('success', `${name} walked the plank!`);
+        loadParticipants();
+        refreshDashboard();
+      } catch (err) { toast('error', err.message); }
+    }
+
+    // ============ SUBMISSIONS ============
+    async function loadSubmissions() {
+      try {
+        const subs = await API('/api/admin/submissions');
+        const tbody = document.getElementById('submissionTable');
+        if (subs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:40px;">No submissions yet</td></tr>';
+          return;
+        }
+        tbody.innerHTML = subs.map(s => `
+          <tr>
+            <td><strong>${escHtml(s.participantName)}</strong></td>
+            <td>${escHtml(s.challengeTitle)}</td>
+            <td>#${s.attempt}</td>
+            <td><span class="badge ${s.status === 'passed' ? 'badge-success' : 'badge-danger'}">${s.status}</span></td>
+            <td>${s.passedTests || 0}/${s.totalTests || 0}</td>
+            <td class="fw-bold text-gold">${s.score || 0}</td>
+            <td class="mono-font" style="font-size:0.8rem;">${s.executionTime || 0}ms</td>
+            <td class="text-muted" style="font-size:0.8rem;">${new Date(s.timestamp).toLocaleTimeString()}</td>
+          </tr>
+        `).join('');
+        document.getElementById('sidebarSubCount').textContent = subs.length;
+      } catch (err) { toast('error', err.message); }
+    }
+
+    // ============ ANNOUNCEMENTS ============
+    function sendAnnouncement() {
+      document.getElementById('announceModal').classList.remove('hidden');
+      document.getElementById('announceMsg').value = '';
+      document.getElementById('announceMsg').focus();
+    }
+
+    async function doAnnounce() {
+      const msg = document.getElementById('announceMsg').value.trim();
+      if (!msg) return toast('error', 'Write a message first!');
+      try {
+        await API('/api/admin/announce', { method: 'POST', body: JSON.stringify({ message: msg }) });
+        toast('success', 'Announcement sent to all pirates!');
+        document.getElementById('announceModal').classList.add('hidden');
+      } catch (err) { toast('error', err.message); }
+    }
+
+    // ============ RESET ALL ============
+    async function confirmResetAll() {
+      if (!confirm('⚠️ NUCLEAR OPTION: Reset EVERYTHING? All data will be permanently deleted!')) return;
+      if (!confirm('Are you ABSOLUTELY sure? This cannot be undone!')) return;
+      try {
+        await API('/api/admin/reset-all', { method: 'POST' });
+        toast('success', 'All data purged!');
+        refreshDashboard();
+      } catch (err) { toast('error', err.message); }
+    }
+
+    // ============ TOAST NOTIFICATIONS ============
+    function toast(type, message) {
+      const container = document.getElementById('toastContainer');
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `
+        <span class="toast-icon">${icons[type] || '📢'}</span>
+        <span class="toast-message">${escHtml(message)}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+      `;
+      container.appendChild(t);
+      setTimeout(() => { if (t.parentElement) t.remove(); }, 5000);
+    }
+
+    // ============ UTILITY ============
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/';
+    }
+
+    function updateSidebarCount(name, count) {
+      const el = document.getElementById('sidebar' + name + 'Count');
+      if (el) el.textContent = count;
+    }
+
+    // ============ INIT ============
+    refreshDashboard();
+  </script>
+</body>
+</html>

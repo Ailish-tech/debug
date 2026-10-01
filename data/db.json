@@ -1,0 +1,549 @@
+{
+  "participants": [
+    [
+      "10797617-84e4-49a8-a8fc-cbd903ba6c50",
+      {
+        "id": "10797617-84e4-49a8-a8fc-cbd903ba6c50",
+        "name": "jkk",
+        "teamName": "Solo Pirate",
+        "createdAt": 1790872370067,
+        "totalScore": 0
+      }
+    ],
+    [
+      "b9df301c-1074-4f56-a148-c8711fcc221f",
+      {
+        "id": "b9df301c-1074-4f56-a148-c8711fcc221f",
+        "name": "er",
+        "teamName": "Solo Pirate",
+        "createdAt": 1790873881229,
+        "totalScore": 145
+      }
+    ]
+  ],
+  "challenges": [
+    [
+      "dc688dfe-08a3-4df1-a576-be7c04ff3429",
+      {
+        "id": "dc688dfe-08a3-4df1-a576-be7c04ff3429",
+        "title": "The Sunken Maximum",
+        "description": "This program should find and print the maximum value in the array {3, 7, 2, 9, 5}. The answer should be 9.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int arr[] = {3, 7, 2, 9, 5};\n    int max = arr[0];\n    for (int i = 1; i < 5; i++) {\n        if (arr[i] < max) {\n            max = arr[i];\n        }\n    }\n    printf(\"Maximum = %d\\n\", max);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Maximum = 9"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "To find the maximum, which direction should you compare?",
+          "Check the comparison operator in the if statement"
+        ],
+        "timeLimit": 15,
+        "errorType": "Wrong comparison operator",
+        "createdAt": 1790871567756
+      }
+    ],
+    [
+      "61e72943-46f1-42f5-9d0f-9bd11cb1f6cb",
+      {
+        "id": "61e72943-46f1-42f5-9d0f-9bd11cb1f6cb",
+        "title": "The Cursed Factorial",
+        "description": "This program should calculate the factorial of 5 (which is 120). Find and fix the bug.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 5;\n    int fact = 0;\n    for (int i = 1; i <= n; i++) {\n        fact *= i;\n    }\n    printf(\"Factorial = %d\\n\", fact);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Factorial = 120"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "What happens when you multiply anything by zero?",
+          "Check the initial value of fact"
+        ],
+        "timeLimit": 15,
+        "errorType": "Wrong initialization",
+        "createdAt": 1790871567756
+      }
+    ],
+    [
+      "64a91bcf-b6f2-4a57-bef0-a48bd6f6288b",
+      {
+        "id": "64a91bcf-b6f2-4a57-bef0-a48bd6f6288b",
+        "title": "The Riddled GCD",
+        "description": "Calculate the GCD of 48 and 18 using the Euclidean subtraction method. The answer is 6.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int a = 48, b = 18;\n    while (a != b) {\n        if (a > b)\n            a = a - b;\n        else\n            b = a - b;\n    }\n    printf(\"GCD = %d\\n\", a);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "GCD = 6"
+          }
+        ],
+        "difficulty": "moderate",
+        "round": 2,
+        "hints": [
+          "In the else branch, which variable should be subtracted from which?",
+          "b should decrease, not potentially go negative"
+        ],
+        "timeLimit": 15,
+        "errorType": "Wrong subtraction order",
+        "createdAt": 1790871567756
+      }
+    ],
+    [
+      "07f43e43-8bc6-4374-bcd4-da97dd1c8b2e",
+      {
+        "id": "07f43e43-8bc6-4374-bcd4-da97dd1c8b2e",
+        "title": "The Sabotaged Star Pyramid",
+        "description": "Print a centered pyramid of stars with 4 rows. Each row has (2*i - 1) stars centered with spaces.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 4;\n    for (int i = 1; i <= n; i++) {\n        for (int j = 1; j <= n - i; j++) {\n            printf(\" \");\n        }\n        for (int j = 1; j < 2 * i; j++) {\n            printf(\"*\");\n        }\n        printf(\"\\n\");\n    }\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "   *\n  ***\n *****\n*******"
+          }
+        ],
+        "difficulty": "moderate",
+        "round": 2,
+        "hints": [
+          "Row i should have exactly (2*i - 1) stars",
+          "Check whether the inner loop condition gives enough stars"
+        ],
+        "timeLimit": 15,
+        "errorType": "Off-by-one in star count",
+        "createdAt": 1790871567756
+      }
+    ],
+    [
+      "091e3b3d-75d1-4303-857a-534298604166",
+      {
+        "id": "091e3b3d-75d1-4303-857a-534298604166",
+        "title": "The Frozen Temperature",
+        "description": "Convert 100 degrees Celsius to Fahrenheit. The formula is F = (C * 9/5) + 32. Answer should be 212.00.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    float celsius = 100.0;\n    float fahrenheit = (celsius * 5 / 9) + 32;\n    printf(\"%.2f C = %.2f F\\n\", celsius, fahrenheit);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "100.00 C = 212.00 F"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "Check the Celsius to Fahrenheit formula",
+          "Is it 5/9 or 9/5?"
+        ],
+        "timeLimit": 15,
+        "errorType": "Wrong formula",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "77844f39-472a-4aed-b06f-e36b082e2e26",
+      {
+        "id": "77844f39-472a-4aed-b06f-e36b082e2e26",
+        "title": "The Cursed Factorial",
+        "description": "This program should calculate the factorial of 5 (which is 120). Find and fix the bug.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 5;\n    int fact = 0;\n    for (int i = 1; i <= n; i++) {\n        fact *= i;\n    }\n    printf(\"Factorial = %d\\n\", fact);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Factorial = 120"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "What happens when you multiply anything by zero?",
+          "Check the initial value of fact"
+        ],
+        "timeLimit": 15,
+        "errorType": "Wrong initialization",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "50ba31f2-e275-4de7-91cb-2bc230c42d72",
+      {
+        "id": "50ba31f2-e275-4de7-91cb-2bc230c42d72",
+        "title": "The Lost Sum of Digits",
+        "description": "This program should calculate the sum of digits of 9876 (which is 9+8+7+6 = 30).",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 9876, sum = 0;\n    while (n > 0) {\n        sum += n / 10;\n        n = n % 10;\n    }\n    printf(\"Sum of digits = %d\\n\", sum);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Sum of digits = 30"
+          }
+        ],
+        "difficulty": "moderate",
+        "round": 1,
+        "hints": [
+          "Which operation extracts the last digit: / or %?",
+          "Which operation removes the last digit?"
+        ],
+        "timeLimit": 15,
+        "errorType": "Swapped operations",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "e3449a16-c365-4abf-a7ab-bd8c52094090",
+      {
+        "id": "e3449a16-c365-4abf-a7ab-bd8c52094090",
+        "title": "The Scrambled Fibonacci",
+        "description": "Print the first 7 Fibonacci numbers: 0 1 1 2 3 5 8",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 7, a = 0, b = 1, next;\n    printf(\"%d %d\", a, b);\n    for (int i = 2; i < n; i++) {\n        next = a + b;\n        a = next;\n        b = next;\n        printf(\" %d\", next);\n    }\n    printf(\"\\n\");\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "0 1 1 2 3 5 8"
+          }
+        ],
+        "difficulty": "moderate",
+        "round": 1,
+        "hints": [
+          "After calculating next, which variable should get the old value of b?",
+          "The order of assignments matters"
+        ],
+        "timeLimit": 15,
+        "errorType": "Wrong assignment order",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "de708f87-13c1-4f85-b5fc-b72265d012b8",
+      {
+        "id": "de708f87-13c1-4f85-b5fc-b72265d012b8",
+        "title": "The Failed Swap",
+        "description": "This program should swap two numbers: a=5 and b=10, so a becomes 10 and b becomes 5.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int a = 5, b = 10;\n    int temp = a;\n    a = b;\n    b = a;\n    printf(\"a = %d, b = %d\\n\", a, b);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "a = 10, b = 5"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "After assigning b to a, what value does a hold?",
+          "What should b be assigned to complete the swap?"
+        ],
+        "timeLimit": 15,
+        "errorType": "Logic error",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "7cc90391-fafb-40d0-9118-2d5b4f25079f",
+      {
+        "id": "7cc90391-fafb-40d0-9118-2d5b4f25079f",
+        "title": "The Vanishing Array Sum",
+        "description": "This program should print the sum of array elements {10, 20, 30, 40, 50}, which is 150.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int arr[] = {10, 20, 30, 40, 50};\n    int sum = 0;\n    for (int i = 0; i <= 5; i++) {\n        sum += arr[i];\n    }\n    printf(\"Sum = %d\\n\", sum);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Sum = 150"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "An array of 5 elements has indices 0 to 4",
+          "Check the loop's upper bound"
+        ],
+        "timeLimit": 15,
+        "errorType": "Array bounds error",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "2db13a5a-09eb-4b8a-b094-cf6ba9ec6fd6",
+      {
+        "id": "2db13a5a-09eb-4b8a-b094-cf6ba9ec6fd6",
+        "title": "The Sunken Maximum",
+        "description": "This program should find and print the maximum value in the array {3, 7, 2, 9, 5}. The answer should be 9.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int arr[] = {3, 7, 2, 9, 5};\n    int max = arr[0];\n    for (int i = 1; i < 5; i++) {\n        if (arr[i] < max) {\n            max = arr[i];\n        }\n    }\n    printf(\"Maximum = %d\\n\", max);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Maximum = 9"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "To find the maximum, which direction should you compare?",
+          "Check the comparison operator in the if statement"
+        ],
+        "timeLimit": 15,
+        "errorType": "Wrong comparison operator",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "78bb5423-5597-4f08-aabd-c6cd75e878f4",
+      {
+        "id": "78bb5423-5597-4f08-aabd-c6cd75e878f4",
+        "title": "The Backward Digits",
+        "description": "This program should count the number of digits in 12345 (which is 5). It currently gives the wrong count.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 12345, count = 1;\n    while (n > 0) {\n        count++;\n        n = n / 10;\n    }\n    printf(\"Digits: %d\\n\", count);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Digits: 5"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "What should count start at?",
+          "Trace through: how many times does the loop run for 12345?"
+        ],
+        "timeLimit": 15,
+        "errorType": "Off-by-one initialization",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "c4654f0c-b7f2-4f42-9154-1abe273d9167",
+      {
+        "id": "c4654f0c-b7f2-4f42-9154-1abe273d9167",
+        "title": "The Imposter Prime",
+        "description": "This program should determine that 17 is a prime number. Currently it says every number is not prime.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 17, isPrime = 1;\n    for (int i = 2; i <= n; i++) {\n        if (n % i == 0) {\n            isPrime = 0;\n            break;\n        }\n    }\n    if (isPrime)\n        printf(\"%d is prime\\n\", n);\n    else\n        printf(\"%d is not prime\\n\", n);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "17 is prime"
+          }
+        ],
+        "difficulty": "moderate",
+        "round": 1,
+        "hints": [
+          "Every number is divisible by itself",
+          "The loop should stop before reaching n"
+        ],
+        "timeLimit": 15,
+        "errorType": "Loop bound error",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "cd4ca020-3a40-4b56-a25a-85ae6426a583",
+      {
+        "id": "cd4ca020-3a40-4b56-a25a-85ae6426a583",
+        "title": "The Broken Counter",
+        "description": "This program should calculate the sum of numbers from 1 to 5 (which is 15). Find and fix the bug.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int n = 5, sum = 0;\n    for (int i = 1; i < n; i++) {\n        sum += i;\n    }\n    printf(\"Sum = %d\\n\", sum);\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "Sum = 15"
+          }
+        ],
+        "difficulty": "easy",
+        "round": 1,
+        "hints": [
+          "Look at the loop condition carefully",
+          "Should i stop before n or at n?"
+        ],
+        "timeLimit": 15,
+        "errorType": "Off-by-one error",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "6ea7c3be-c517-47ef-b802-353c63804376",
+      {
+        "id": "6ea7c3be-c517-47ef-b802-353c63804376",
+        "title": "The Corrupted Selection Sort",
+        "description": "Sort the array {29, 10, 14, 37, 13} in ascending order using selection sort. Output: 10 13 14 29 37",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int arr[] = {29, 10, 14, 37, 13};\n    int n = 5;\n    for (int i = 0; i < n - 1; i++) {\n        int minIdx = 0;\n        for (int j = i + 1; j < n; j++) {\n            if (arr[j] > arr[minIdx]) {\n                minIdx = j;\n            }\n        }\n        int temp = arr[i];\n        arr[i] = arr[minIdx];\n        arr[minIdx] = temp;\n    }\n    for (int i = 0; i < n; i++) {\n        if (i > 0) printf(\" \");\n        printf(\"%d\", arr[i]);\n    }\n    printf(\"\\n\");\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "10 13 14 29 37"
+          }
+        ],
+        "difficulty": "moderate",
+        "round": 2,
+        "hints": [
+          "Where should minIdx start in each outer iteration?",
+          "To sort ascending, should you find the minimum or maximum?"
+        ],
+        "timeLimit": 15,
+        "errorType": "Multiple bugs: wrong init + wrong comparison",
+        "createdAt": 1790871587147
+      }
+    ],
+    [
+      "c1a0e931-52d9-46c5-985b-22602861d903",
+      {
+        "id": "c1a0e931-52d9-46c5-985b-22602861d903",
+        "title": "The Capsized Matrix Transpose",
+        "description": "Transpose a 3x3 matrix {{1,2,3},{4,5,6},{7,8,9}} and print the result row by row.",
+        "buggyCode": "#include <stdio.h>\nint main() {\n    int mat[3][3] = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};\n    for (int i = 0; i < 3; i++) {\n        for (int j = 0; j < 3; j++) {\n            int temp = mat[i][j];\n            mat[i][j] = mat[j][i];\n            mat[j][i] = temp;\n        }\n    }\n    for (int i = 0; i < 3; i++) {\n        for (int j = 0; j < 3; j++) {\n            if (j > 0) printf(\" \");\n            printf(\"%d\", mat[i][j]);\n        }\n        printf(\"\\n\");\n    }\n    return 0;\n}",
+        "language": "c",
+        "testCases": [
+          {
+            "input": "",
+            "expectedOutput": "1 4 7\n2 5 8\n3 6 9"
+          }
+        ],
+        "difficulty": "hard",
+        "round": 2,
+        "hints": [
+          "If you swap (i,j) with (j,i) for ALL pairs, each pair gets swapped twice",
+          "Only swap elements above the diagonal: j should start from i+1"
+        ],
+        "timeLimit": 15,
+        "errorType": "Double-swap: transposing entire matrix swaps back",
+        "createdAt": 1790871587147
+      }
+    ]
+  ],
+  "submissions": [
+    [
+      "c915d66c-9f55-4dfb-b143-437b19288651",
+      {
+        "id": "c915d66c-9f55-4dfb-b143-437b19288651",
+        "participantId": "10797617-84e4-49a8-a8fc-cbd903ba6c50",
+        "challengeId": "1b906f9c-95aa-49c3-8dc3-90b21c683956",
+        "code": "#include <stdio.h>\n\n// Extracted logic into a reusable, testable function\nvoid print_multiplication_table(int base_number, int limit) {\n    // Basic input validation (a must in production)\n    if (limit < 0) {\n        fprintf(stderr, \"Error: Limit cannot be negative.\\n\");\n        return;\n    }\n    \n    for (int i = 0; i < limit; i++) {\n        printf(\"%d x %d = %d\\n\", base_number, i, base_number * i);\n    }\n}\n\nint main() {\n    // Configuration at the top, variables declare intent\n    const int TARGET_NUMBER = 7;\n    const int MULTIPLIER_LIMIT = 5;\n\n    // Function call makes main() clean and readable\n    print_multiplication_table(TARGET_NUMBER, MULTIPLIER_LIMIT);\n\n    return 0;\n}",
+        "attempt": 1,
+        "status": "failed",
+        "testResults": [
+          {
+            "testCase": 1,
+            "passed": false,
+            "expected": "7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35",
+            "got": "7 x 0 = 0\r\n7 x 1 = 7\r\n7 x 2 = 14\r\n7 x 3 = 21\r\n7 x 4 = 28",
+            "error": null,
+            "executionTime": 13207
+          }
+        ],
+        "passedTests": 0,
+        "totalTests": 1,
+        "executionTime": 13207,
+        "score": 0,
+        "timestamp": 1790872482826
+      }
+    ],
+    [
+      "6ddf6345-3f5d-44da-9c90-3747d2de1bd7",
+      {
+        "id": "6ddf6345-3f5d-44da-9c90-3747d2de1bd7",
+        "participantId": "10797617-84e4-49a8-a8fc-cbd903ba6c50",
+        "challengeId": "1b906f9c-95aa-49c3-8dc3-90b21c683956",
+        "code": "#include <stdio.h>\nint main() {\n    int n = 7;\n    for (int i = 1; i <=5; i++) {\n        printf(\"%d x %d = %d\\n\", n, i, n * i);\n    }\n    return 0;\n}",
+        "attempt": 2,
+        "status": "failed",
+        "testResults": [
+          {
+            "testCase": 1,
+            "passed": false,
+            "expected": "7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35",
+            "got": "7 x 1 = 7\r\n7 x 2 = 14\r\n7 x 3 = 21\r\n7 x 4 = 28\r\n7 x 5 = 35",
+            "error": null,
+            "executionTime": 1456
+          }
+        ],
+        "passedTests": 0,
+        "totalTests": 1,
+        "executionTime": 1456,
+        "score": 0,
+        "timestamp": 1790872624878
+      }
+    ],
+    [
+      "7d78ff47-372a-4d79-b2e5-a5de356a00e2",
+      {
+        "id": "7d78ff47-372a-4d79-b2e5-a5de356a00e2",
+        "participantId": "b9df301c-1074-4f56-a148-c8711fcc221f",
+        "challengeId": "dc688dfe-08a3-4df1-a576-be7c04ff3429",
+        "code": "#include <stdio.h>\n\nint main() {\n    int arr[] = {3, 7, 2, 9, 5};\n    int max = arr[0];\n    \n    for (int i = 1; i < 5; i++) {\n        if (arr[i] > max) {\n            max = arr[i];\n        }\n    }\n    \n    printf(\"Maximum = %d\\n\", max);\n    return 0;\n}",
+        "attempt": 1,
+        "status": "passed",
+        "testResults": [
+          {
+            "testCase": 1,
+            "passed": true,
+            "expected": "Maximum = 9",
+            "got": "Maximum = 9",
+            "error": null,
+            "executionTime": 1690
+          }
+        ],
+        "passedTests": 1,
+        "totalTests": 1,
+        "executionTime": 1690,
+        "score": 145,
+        "timestamp": 1790874096114
+      }
+    ]
+  ],
+  "rounds": {
+    "1": {
+      "id": 1,
+      "name": "The First Fix",
+      "difficulty": "Easy – Moderate",
+      "status": "active",
+      "challengeIds": [
+        "dc688dfe-08a3-4df1-a576-be7c04ff3429",
+        "61e72943-46f1-42f5-9d0f-9bd11cb1f6cb",
+        "091e3b3d-75d1-4303-857a-534298604166",
+        "77844f39-472a-4aed-b06f-e36b082e2e26",
+        "50ba31f2-e275-4de7-91cb-2bc230c42d72",
+        "e3449a16-c365-4abf-a7ab-bd8c52094090",
+        "de708f87-13c1-4f85-b5fc-b72265d012b8",
+        "7cc90391-fafb-40d0-9118-2d5b4f25079f",
+        "2db13a5a-09eb-4b8a-b094-cf6ba9ec6fd6",
+        "78bb5423-5597-4f08-aabd-c6cd75e878f4",
+        "c4654f0c-b7f2-4f42-9154-1abe273d9167",
+        "cd4ca020-3a40-4b56-a25a-85ae6426a583"
+      ],
+      "startTime": 1790873820038,
+      "endTime": 1790876520038,
+      "duration": 2700000,
+      "maxAttempts": 2
+    },
+    "2": {
+      "id": 2,
+      "name": "The Final Debug",
+      "difficulty": "Moderate – Hard",
+      "status": "idle",
+      "challengeIds": [
+        "64a91bcf-b6f2-4a57-bef0-a48bd6f6288b",
+        "07f43e43-8bc6-4374-bcd4-da97dd1c8b2e",
+        "6ea7c3be-c517-47ef-b802-353c63804376",
+        "c1a0e931-52d9-46c5-985b-22602861d903"
+      ],
+      "startTime": null,
+      "endTime": null,
+      "duration": 2700000,
+      "maxAttempts": 4
+    }
+  },
+  "activeRound": 1
+}

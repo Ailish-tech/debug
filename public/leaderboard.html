@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Live Leaderboard — Dead Man's Debug Competition">
+  <title>🏆 Leaderboard — Dead Man's Debug</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    .lb-page { min-height: 100vh; }
+    .lb-header {
+      text-align: center;
+      padding: 60px 20px 40px;
+      animation: fadeInUp 0.6s ease;
+    }
+    .lb-header h1 { font-size: 3rem; margin-bottom: 8px; }
+    .lb-header p { color: var(--text-secondary); font-size: 1.1rem; }
+
+    .podium-section {
+      max-width: 700px;
+      margin: 0 auto 40px;
+      animation: fadeInUp 0.8s ease 0.2s backwards;
+    }
+
+    .podium-display {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .podium-entry {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      transition: var(--transition);
+    }
+
+    .podium-entry:hover { transform: translateY(-5px); }
+
+    .podium-medal {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      border: 3px solid var(--border);
+      background: var(--bg-surface);
+      transition: var(--transition);
+    }
+
+    .podium-entry.gold .podium-medal {
+      border-color: var(--gold);
+      box-shadow: 0 0 30px var(--gold-glow), 0 0 60px rgba(240,192,64,0.1);
+      width: 88px; height: 88px; font-size: 2.5rem;
+      background: linear-gradient(135deg, rgba(240,192,64,0.15), var(--bg-surface));
+    }
+    .podium-entry.silver .podium-medal {
+      border-color: #c0c0c0;
+      box-shadow: 0 0 20px rgba(192,192,192,0.2);
+    }
+    .podium-entry.bronze .podium-medal {
+      border-color: #cd7f32;
+      box-shadow: 0 0 20px rgba(205,127,50,0.2);
+    }
+
+    .podium-pirate-name {
+      font-weight: 700;
+      font-size: 1rem;
+      text-align: center;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .podium-pirate-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--gold);
+    }
+
+    .podium-pillar {
+      width: 130px;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 16px;
+      font-family: 'Pirata One', cursive;
+      font-size: 2rem;
+      color: var(--gold);
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+
+    .podium-entry.gold .podium-pillar {
+      height: 150px;
+      background: linear-gradient(180deg, rgba(240,192,64,0.12), var(--bg-deep));
+      border-color: rgba(240,192,64,0.3);
+    }
+    .podium-entry.silver .podium-pillar {
+      height: 110px;
+      background: linear-gradient(180deg, rgba(192,192,192,0.08), var(--bg-deep));
+      border-color: rgba(192,192,192,0.2);
+    }
+    .podium-entry.bronze .podium-pillar {
+      height: 80px;
+      background: linear-gradient(180deg, rgba(205,127,50,0.08), var(--bg-deep));
+      border-color: rgba(205,127,50,0.2);
+    }
+
+    /* Table section */
+    .lb-table-section {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 20px 60px;
+      animation: fadeInUp 0.8s ease 0.4s backwards;
+    }
+
+    .lb-table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .lb-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 120px 100px 100px 100px;
+      align-items: center;
+      padding: 14px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 6px;
+      transition: var(--transition);
+    }
+
+    .lb-row:hover {
+      border-color: var(--border-hover);
+      transform: translateX(4px);
+      box-shadow: var(--shadow-gold);
+    }
+
+    .lb-row.highlight {
+      border-color: var(--gold);
+      background: rgba(240,192,64,0.08);
+    }
+
+    .lb-rank {
+      font-family: 'Pirata One', cursive;
+      font-size: 1.4rem;
+      color: var(--gold);
+      text-align: center;
+    }
+
+    .lb-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .lb-team {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .lb-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--gold);
+      text-align: center;
+    }
+
+    .lb-solved { text-align: center; color: var(--success); font-weight: 600; }
+    .lb-attempts { text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+    .lb-time { text-align: center; color: var(--text-muted); font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; }
+
+    .lb-row-header {
+      background: transparent;
+      border-color: transparent;
+      padding: 8px 20px;
+    }
+    .lb-row-header:hover { transform: none; box-shadow: none; border-color: transparent; }
+    .lb-row-header span {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .live-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: timerPulse 2s infinite;
+      margin-right: 6px;
+    }
+
+    @media (max-width: 768px) {
+      .podium-display { flex-direction: column; align-items: center; gap: 12px; }
+      .podium-pillar { display: none; }
+      .lb-row { grid-template-columns: 50px 1fr 80px 80px; }
+      .lb-attempts, .lb-time { display: none; }
+      .lb-header h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ocean-bg">
+    <div class="stars"></div>
+    <div class="wave"></div>
+    <div class="wave"></div>
+  </div>
+
+  <div class="lb-page">
+    <!-- Header -->
+    <div class="lb-header">
+      <h1>🏆 Hall of Pirates</h1>
+      <p><span class="live-dot"></span>Live Leaderboard — Dead Man's Debug</p>
+    </div>
+
+    <!-- Podium -->
+    <div class="podium-section">
+      <div class="podium-display" id="podium">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
+
+    <!-- Full Rankings -->
+    <div class="lb-table-section">
+      <div class="lb-table-header">
+        <h2>📋 Full Rankings</h2>
+        <span class="badge badge-gold" id="totalPirates">0 pirates</span>
+      </div>
+
+      <div class="lb-row lb-row-header">
+        <span>Rank</span>
+        <span>Pirate</span>
+        <span style="text-align:center;">Score</span>
+        <span style="text-align:center;">Solved</span>
+        <span style="text-align:center;">Attempts</span>
+        <span style="text-align:center;">Last Submit</span>
+      </div>
+
+      <div id="rankingList">
+        <div class="empty-state">
+          <div class="empty-icon">⚓</div>
+          <h3>No Rankings Yet</h3>
+          <p>Waiting for pirates to solve challenges...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+
+    // Listen for leaderboard updates
+    socket.on('leaderboard:update', (data) => {
+      renderLeaderboard(data);
+    });
+
+    // Load initial leaderboard
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch('/api/leaderboard');
+        const data = await res.json();
+        renderLeaderboard(data);
+      } catch (e) {
+        console.error('Failed to load leaderboard:', e);
+      }
+    }
+
+    function renderLeaderboard(data) {
+      document.getElementById('totalPirates').textContent = data.length + ' pirates';
+
+      // Podium (top 3)
+      const podium = document.getElementById('podium');
+      const top3 = data.slice(0, 3);
+
+      if (top3.length === 0) {
+        podium.innerHTML = '<div class="empty-state"><div class="empty-icon" style="font-size:3rem;">🏆</div><p class="text-muted">Awaiting top pirates...</p></div>';
+      } else {
+        // Order for display: 2nd, 1st, 3rd
+        const podiumOrder = [];
+        if (top3[1]) podiumOrder.push({ ...top3[1], cls: 'silver', medal: '🥈', num: 2 });
+        if (top3[0]) podiumOrder.push({ ...top3[0], cls: 'gold', medal: '🥇', num: 1 });
+        if (top3[2]) podiumOrder.push({ ...top3[2], cls: 'bronze', medal: '🥉', num: 3 });
+
+        podium.innerHTML = podiumOrder.map(p => `
+          <div class="podium-entry ${p.cls}">
+            <div class="podium-medal">${p.medal}</div>
+            <div class="podium-pirate-name">${escHtml(p.name)}</div>
+            <div class="podium-pirate-score">${p.score} pts</div>
+            <div class="podium-pillar">#${p.num}</div>
+          </div>
+        `).join('');
+      }
+
+      // Full list
+      const list = document.getElementById('rankingList');
+      if (data.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚓</div><h3>No Rankings Yet</h3><p>Waiting for pirates to solve challenges...</p></div>';
+        return;
+      }
+
+      const rankIcons = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+      list.innerHTML = data.map(p => `
+        <div class="lb-row ${p.rank <= 3 ? 'highlight' : ''}">
+          <div class="lb-rank">${rankIcons[p.rank] || p.rank}</div>
+          <div>
+            <div class="lb-name">${escHtml(p.name)}</div>
+            <div class="lb-team">${escHtml(p.teamName)}</div>
+          </div>
+          <div class="lb-score">${p.score}</div>
+          <div class="lb-solved">${p.solved} ✅</div>
+          <div class="lb-attempts">${p.totalAttempts}</div>
+          <div class="lb-time">${p.lastSubmission ? new Date(p.lastSubmission).toLocaleTimeString() : '—'}</div>
+        </div>
+      `).join('');
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Auto-refresh every 15 seconds
+    setInterval(loadLeaderboard, 15000);
+
+    // Initial load
+    loadLeaderboard();
+  </script>
+</body>
+</html>

@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Debugging Arena — Fix the code, earn doubloons, climb the leaderboard!">
+  <title>The Arena — Dead Man's Debug</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- CodeMirror CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+  <style>
+    .arena-layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      min-height: calc(100vh - 110px);
+    }
+    .challenge-sidebar {
+      background: rgba(5, 10, 26, 0.6);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      backdrop-filter: blur(10px);
+    }
+    .arena-main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .arena-workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      min-height: 0;
+    }
+    .arena-desc-panel {
+      padding: 24px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+    }
+    .arena-code-panel {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .arena-code-panel .CodeMirror {
+      flex: 1;
+      min-height: 0;
+    }
+    .arena-actions {
+      padding: 12px 16px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .result-output {
+      padding: 16px;
+      max-height: 250px;
+      overflow-y: auto;
+      background: var(--bg-deep);
+      border-top: 1px solid var(--border);
+    }
+    .ch-sidebar-card {
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+    }
+    .ch-sidebar-card:hover { border-color: var(--border-hover); background: rgba(240,192,64,0.05); }
+    .ch-sidebar-card.active { border-color: var(--gold); background: rgba(240,192,64,0.1); }
+    .ch-sidebar-card.solved { border-color: var(--success); }
+    .ch-sidebar-card.solved::after {
+      content: '✅'; position: absolute; top: 8px; right: 8px; font-size: 1rem;
+    }
+    .ch-sidebar-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 4px; }
+    .ch-sidebar-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; }
+    .hint-box {
+      padding: 12px 16px;
+      background: rgba(240,192,64,0.05);
+      border: 1px solid rgba(240,192,64,0.15);
+      border-radius: var(--radius-sm);
+      margin-top: 12px;
+      font-size: 0.85rem;
+    }
+    .hint-toggle {
+      cursor: pointer;
+      color: var(--gold);
+      font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .test-result-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+    }
+    .test-result-item.pass { background: rgba(46,204,113,0.1); }
+    .test-result-item.fail { background: rgba(231,76,60,0.1); }
+    @media (max-width: 1024px) {
+      .arena-layout { grid-template-columns: 1fr; }
+      .challenge-sidebar { display: none; }
+      .arena-workspace { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ocean-bg">
+    <div class="stars"></div>
+    <div class="wave"></div>
+    <div class="wave"></div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a class="navbar-brand" href="/arena">
+      <span class="skull">⚔️</span>
+      <h1>The Arena</h1>
+    </a>
+    <div class="navbar-info">
+      <div class="navbar-badge" id="playerBadge">
+        🏴‍☠️ <span id="playerName">Pirate</span>
+      </div>
+      <div class="navbar-badge" id="scoreBadge">
+        💰 <span id="playerScore">0</span> doubloons
+      </div>
+      <a href="/leaderboard" class="btn btn-sm" target="_blank">🏆 Leaderboard</a>
+      <button class="btn btn-sm btn-danger" onclick="logout()">🚪 Leave</button>
+    </div>
+  </nav>
+
+  <!-- Timer Bar -->
+  <div class="timer-bar" id="timerBar" style="display:none;">
+    <span style="font-size: 0.85rem; color: var(--text-secondary);">⏱️ Time Remaining:</span>
+    <div class="timer-display" id="timerDisplay">45:00</div>
+    <div class="timer-progress">
+      <div class="timer-progress-fill" id="timerFill" style="width: 100%"></div>
+    </div>
+    <div class="navbar-badge">
+      <span id="roundLabel">Round 1</span>
+    </div>
+  </div>
+
+  <!-- WAITING ROOM -->
+  <div id="waitingRoom" class="waiting-room">
+    <div class="waiting-icon">⚓</div>
+    <h2>Anchored & Waiting</h2>
+    <p>The Captain hasn't started a round yet. Sharpen yer debugging cutlass and stand by!</p>
+    <div class="spinner mt-lg"></div>
+    <p class="text-muted mt-md" style="font-size: 0.85rem;">The arena will open automatically when a round begins...</p>
+  </div>
+
+  <!-- ARENA -->
+  <div id="arenaContainer" class="arena-layout hidden">
+    <!-- Challenge Sidebar -->
+    <aside class="challenge-sidebar">
+      <div class="sidebar-label mb-sm">📋 Challenges</div>
+      <div id="challengeList"></div>
+      <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);">
+        <div class="sidebar-label">Your Progress</div>
+        <div class="flex items-center justify-between" style="padding: 8px 0;">
+          <span class="text-muted" style="font-size:0.85rem;">Solved</span>
+          <span class="fw-bold text-success" id="solvedCount">0/0</span>
+        </div>
+        <div class="flex items-center justify-between" style="padding: 8px 0;">
+          <span class="text-muted" style="font-size:0.85rem;">Score</span>
+          <span class="fw-bold text-gold" id="sideScore">0</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Arena -->
+    <div class="arena-main">
+      <!-- No challenge selected -->
+      <div id="noChallengeSelected" class="empty-state" style="flex:1;">
+        <div class="empty-icon">🗡️</div>
+        <h3>Select a Challenge</h3>
+        <p>Choose a challenge from the sidebar to start debugging!</p>
+      </div>
+
+      <!-- Challenge workspace -->
+      <div id="challengeWorkspace" class="hidden" style="display:none; flex-direction:column; flex:1; min-height:0;">
+        <div class="arena-workspace">
+          <!-- Description Panel -->
+          <div class="arena-desc-panel">
+            <div class="flex items-center justify-between mb-md">
+              <h3 id="chTitleDisplay" style="margin:0;">Challenge</h3>
+              <div class="flex gap-sm items-center">
+                <span class="badge" id="chDiffBadge">moderate</span>
+                <span class="badge badge-info" id="chLangBadge">javascript</span>
+              </div>
+            </div>
+            <p id="chDescDisplay" class="text-secondary mb-md" style="line-height:1.7;"></p>
+
+            <!-- Attempts -->
+            <div class="flex items-center justify-between mb-md" style="padding:12px 16px; background:var(--bg-surface); border-radius:var(--radius-sm); border:1px solid var(--border);">
+              <span class="text-muted" style="font-size:0.85rem;">Attempts</span>
+              <div class="attempts" id="attemptsDisplay"></div>
+            </div>
+
+            <!-- Hints -->
+            <div id="hintsContainer" class="hidden">
+              <div class="hint-box">
+                <div class="hint-toggle" onclick="toggleHints()">
+                  <span>💡</span> <span id="hintToggleText">Show Hints</span> <span id="hintArrow">▼</span>
+                </div>
+                <div id="hintList" class="hidden mt-sm" style="color: var(--text-secondary);"></div>
+              </div>
+            </div>
+
+            <!-- Test Results (after submission) -->
+            <div id="testResultsPanel" class="hidden mt-lg">
+              <h3 style="font-size: 1.1rem; margin-bottom: 12px;">📋 Test Results</h3>
+              <div id="testResultsList"></div>
+            </div>
+          </div>
+
+          <!-- Code Panel -->
+          <div class="arena-code-panel">
+            <div class="editor-header">
+              <div class="editor-dots">
+                <span class="dot-red"></span>
+                <span class="dot-yellow"></span>
+                <span class="dot-green"></span>
+              </div>
+              <span class="editor-lang" id="editorLang">JAVASCRIPT</span>
+            </div>
+            <div id="codeEditorContainer" style="flex:1; min-height:0; overflow:hidden;"></div>
+          </div>
+        </div>
+
+        <!-- Actions Bar -->
+        <div class="arena-actions">
+          <div class="flex items-center gap-md">
+            <span class="text-muted" style="font-size:0.85rem;" id="submitStatus">Ready to debug</span>
+          </div>
+          <div class="flex gap-sm">
+            <button class="btn" onclick="resetCode()" id="resetBtn">🔄 Reset Code</button>
+            <button class="btn btn-fire btn-lg" onclick="submitCode()" id="submitBtn">
+              🔥 FIRE! Submit Debug
+            </button>
+          </div>
+        </div>
+
+        <!-- Result Output -->
+        <div id="resultOutput" class="result-output hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============ AUTH CHECK ============
+    const TOKEN = localStorage.getItem('dmd_token');
+    const TYPE = localStorage.getItem('dmd_type');
+    if (!TOKEN || TYPE !== 'participant') window.location.href = '/';
+
+    const participant = JSON.parse(localStorage.getItem('dmd_participant') || '{}');
+    document.getElementById('playerName').textContent = participant.name || 'Pirate';
+
+    const API = (url, opts = {}) => fetch(url, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN, ...opts.headers }
+    }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Failed'); return d; });
+
+    // ============ STATE ============
+    let challenges = [];
+    let currentChallenge = null;
+    let roundInfo = null;
+    let editor = null;
+    let originalCode = '';
+    let myScore = 0;
+    let solvedSet = new Set();
+    let timerInterval = null;
+    let roundEndTime = null;
+    let roundDuration = null;
+
+    // ============ SOCKET.IO ============
+    const socket = io();
+    socket.emit('join', { room: 'participant', token: TOKEN });
+
+    socket.on('round:started', (data) => {
+      toast('success', `🏴‍☠️ ${data.round.name} has begun! Get debugging!`);
+      roundInfo = data.round;
+      challenges = data.challenges.map(c => ({ ...c, solved: false, attempts: 0, maxAttempts: data.round.maxAttempts }));
+      roundEndTime = data.endTime;
+      roundDuration = data.duration;
+      solvedSet.clear();
+      enterArena();
+    });
+
+    socket.on('round:ended', (data) => {
+      toast('info', `⏹ ${data.name || 'Round'} has ended!`);
+      exitArena();
+    });
+
+    socket.on('timer:update', (data) => {
+      roundEndTime = data.endTime;
+      updateTimer();
+    });
+
+    socket.on('announcement', (data) => {
+      toast('warning', `📢 Captain says: ${data.message}`);
+    });
+
+    socket.on('leaderboard:update', () => refreshMyScore());
+
+    // ============ ARENA CONTROL ============
+    function enterArena() {
+      document.getElementById('waitingRoom').classList.add('hidden');
+      document.getElementById('arenaContainer').classList.remove('hidden');
+      document.getElementById('timerBar').style.display = 'flex';
+      document.getElementById('roundLabel').textContent = `Round ${roundInfo?.id || '?'} — ${roundInfo?.name || ''}`;
+      renderChallengeList();
+      startTimer();
+    }
+
+    function exitArena() {
+      document.getElementById('arenaContainer').classList.add('hidden');
+      document.getElementById('timerBar').style.display = 'none';
+      document.getElementById('waitingRoom').classList.remove('hidden');
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      currentChallenge = null;
+    }
+
+    // ============ TIMER ============
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function updateTimer() {
+      if (!roundEndTime) return;
+      const remaining = roundEndTime - Date.now();
+      if (remaining <= 0) {
+        document.getElementById('timerDisplay').textContent = '00:00';
+        document.getElementById('timerFill').style.width = '0%';
+        clearInterval(timerInterval);
+        return;
+      }
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      const display = document.getElementById('timerDisplay');
+      display.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+      const pct = roundDuration ? (remaining / roundDuration) * 100 : 100;
+      const fill = document.getElementById('timerFill');
+      fill.style.width = pct + '%';
+
+      if (remaining < 120000) {
+        display.classList.add('danger');
+        fill.classList.add('danger');
+      } else {
+        display.classList.remove('danger');
+        fill.classList.remove('danger');
+      }
+    }
+
+    // ============ CHALLENGE LIST ============
+    function renderChallengeList() {
+      const list = document.getElementById('challengeList');
+      const totalChallenges = challenges.length;
+      const solvedCount = challenges.filter(c => c.solved).length;
+      document.getElementById('solvedCount').textContent = `${solvedCount}/${totalChallenges}`;
+
+      list.innerHTML = challenges.map((c, i) => `
+        <div class="ch-sidebar-card ${currentChallenge?.id === c.id ? 'active' : ''} ${c.solved ? 'solved' : ''}"
+             onclick="selectChallenge('${c.id}')">
+          <div class="ch-sidebar-title">${i + 1}. ${escHtml(c.title)}</div>
+          <div class="ch-sidebar-meta">
+            <span>${c.language}</span>
+            <span>${c.difficulty}</span>
+            <span>${c.attempts}/${c.maxAttempts} tries</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ============ SELECT CHALLENGE ============
+    function selectChallenge(id) {
+      currentChallenge = challenges.find(c => c.id === id);
+      if (!currentChallenge) return;
+
+      // Show workspace
+      document.getElementById('noChallengeSelected').classList.add('hidden');
+      const ws = document.getElementById('challengeWorkspace');
+      ws.classList.remove('hidden');
+      ws.style.display = 'flex';
+
+      // Populate description
+      document.getElementById('chTitleDisplay').textContent = currentChallenge.title;
+      document.getElementById('chDescDisplay').textContent = currentChallenge.description || 'Debug the code below to make it produce the correct output.';
+
+      const diffBadge = document.getElementById('chDiffBadge');
+      diffBadge.textContent = currentChallenge.difficulty;
+      diffBadge.className = 'badge badge-' + (currentChallenge.difficulty === 'easy' ? 'success' : currentChallenge.difficulty === 'hard' ? 'danger' : 'warning');
+
+      document.getElementById('chLangBadge').textContent = currentChallenge.language;
+      document.getElementById('editorLang').textContent = currentChallenge.language.toUpperCase();
+
+      // Attempts
+      renderAttempts();
+
+      // Hints
+      const hints = currentChallenge.hints || [];
+      const hintsContainer = document.getElementById('hintsContainer');
+      if (hints.length > 0) {
+        hintsContainer.classList.remove('hidden');
+        document.getElementById('hintList').innerHTML = hints.map((h, i) => `<p style="margin:4px 0;">💡 ${escHtml(h)}</p>`).join('');
+        document.getElementById('hintList').classList.add('hidden');
+        document.getElementById('hintToggleText').textContent = 'Show Hints';
+        document.getElementById('hintArrow').textContent = '▼';
+      } else {
+        hintsContainer.classList.add('hidden');
+      }
+
+      // Reset test results
+      document.getElementById('testResultsPanel').classList.add('hidden');
+      document.getElementById('resultOutput').classList.add('hidden');
+
+      // Code editor
+      originalCode = currentChallenge.buggyCode;
+      setupEditor(currentChallenge.buggyCode, currentChallenge.language);
+
+      // Update submit button
+      updateSubmitState();
+      renderChallengeList();
+    }
+
+    function renderAttempts() {
+      if (!currentChallenge) return;
+      const container = document.getElementById('attemptsDisplay');
+      const max = currentChallenge.maxAttempts;
+      const used = currentChallenge.attempts;
+      let html = '';
+      for (let i = 0; i < max; i++) {
+        if (currentChallenge.solved && i < used) {
+          html += '<div class="attempt-dot success" title="Solved!"></div>';
+        } else if (i < used) {
+          html += '<div class="attempt-dot used" title="Used"></div>';
+        } else {
+          html += '<div class="attempt-dot available" title="Available"></div>';
+        }
+      }
+      html += `<span class="text-muted" style="font-size:0.8rem; margin-left:8px;">${max - used} remaining</span>`;
+      container.innerHTML = html;
+    }
+
+    function toggleHints() {
+      const list = document.getElementById('hintList');
+      const text = document.getElementById('hintToggleText');
+      const arrow = document.getElementById('hintArrow');
+      list.classList.toggle('hidden');
+      text.textContent = list.classList.contains('hidden') ? 'Show Hints' : 'Hide Hints';
+      arrow.textContent = list.classList.contains('hidden') ? '▼' : '▲';
+    }
+
+    function updateSubmitState() {
+      const btn = document.getElementById('submitBtn');
+      const status = document.getElementById('submitStatus');
+      if (!currentChallenge) return;
+      if (currentChallenge.solved) {
+        btn.disabled = true;
+        btn.textContent = '✅ TREASURE FOUND';
+        status.textContent = 'Challenge conquered!';
+        status.style.color = 'var(--success)';
+      } else if (currentChallenge.attempts >= currentChallenge.maxAttempts) {
+        btn.disabled = true;
+        btn.textContent = '💀 NO ATTEMPTS LEFT';
+        status.textContent = 'No more cannonballs!';
+        status.style.color = 'var(--danger)';
+      } else {
+        btn.disabled = false;
+        btn.textContent = '🔥 FIRE! Submit Debug';
+        status.textContent = 'Ready to debug';
+        status.style.color = 'var(--text-muted)';
+      }
+    }
+
+    // ============ CODE EDITOR ============
+    const modeMap = {
+      javascript: 'javascript', js: 'javascript',
+      python: 'python', py: 'python',
+      c: 'text/x-csrc', cpp: 'text/x-c++src', 'c++': 'text/x-c++src',
+      java: 'text/x-java'
+    };
+
+    function setupEditor(code, language) {
+      const container = document.getElementById('codeEditorContainer');
+      container.innerHTML = '';
+
+      editor = CodeMirror(container, {
+        value: code,
+        mode: modeMap[language.toLowerCase()] || 'text/x-csrc',
+        theme: 'material-darker',
+        lineNumbers: true,
+        indentUnit: 2,
+        tabSize: 2,
+        indentWithTabs: false,
+        lineWrapping: false,
+        matchBrackets: true,
+        autoCloseBrackets: true,
+        styleActiveLine: true,
+        viewportMargin: Infinity
+      });
+
+      // Force refresh after layout
+      setTimeout(() => editor.refresh(), 100);
+    }
+
+    function resetCode() {
+      if (!currentChallenge || !editor) return;
+      if (!confirm('Reset to original buggy code?')) return;
+      editor.setValue(originalCode);
+    }
+
+    // ============ SUBMIT CODE ============
+    async function submitCode() {
+      if (!currentChallenge || !editor) return;
+      if (currentChallenge.solved || currentChallenge.attempts >= currentChallenge.maxAttempts) return;
+
+      const code = editor.getValue();
+      const btn = document.getElementById('submitBtn');
+      const status = document.getElementById('submitStatus');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Evaluating...';
+      btn.style.animation = 'none';
+      status.textContent = 'Running test cases...';
+      status.style.color = 'var(--warning)';
+
+      try {
+        const result = await API('/api/submissions', {
+          method: 'POST',
+          body: JSON.stringify({ challengeId: currentChallenge.id, code })
+        });
+
+        // Update local state
+        currentChallenge.attempts = (currentChallenge.maxAttempts) - (result.attemptsRemaining);
+        if (result.submission.status === 'passed') {
+          currentChallenge.solved = true;
+          solvedSet.add(currentChallenge.id);
+          myScore += result.submission.score;
+          document.getElementById('playerScore').textContent = myScore;
+          document.getElementById('sideScore').textContent = myScore;
+
+          // Show success animation
+          showResult('success', result.message, result.submission);
+          toast('success', result.message);
+        } else {
+          showResult('error', result.message, result.submission);
+          toast('warning', result.message);
+        }
+
+        renderAttempts();
+        updateSubmitState();
+        renderChallengeList();
+      } catch (err) {
+        showResult('error', err.message, null);
+        toast('error', err.message);
+        btn.disabled = false;
+        btn.textContent = '🔥 FIRE! Submit Debug';
+      }
+    }
+
+    function showResult(type, message, submission) {
+      // Show test results
+      if (submission?.testResults) {
+        const panel = document.getElementById('testResultsPanel');
+        const list = document.getElementById('testResultsList');
+        panel.classList.remove('hidden');
+
+        list.innerHTML = submission.testResults.map((tr, i) => `
+          <div class="test-result-item ${tr.passed ? 'pass' : 'fail'}">
+            <span>${tr.passed ? '✅' : '❌'}</span>
+            <span class="fw-bold">Test ${tr.testCase}</span>
+            ${!tr.passed ? `
+              <span class="text-muted" style="font-size:0.8rem; margin-left:auto;">
+                ${tr.error ? 'Error: ' + escHtml(tr.error).substring(0, 100) : 'Expected: ' + escHtml(tr.expected).substring(0, 50) + ' | Got: ' + escHtml(tr.got).substring(0, 50)}
+              </span>
+            ` : `<span class="text-muted" style="font-size:0.8rem; margin-left:auto;">${tr.executionTime}ms</span>`}
+          </div>
+        `).join('');
+      }
+
+      // Show result output
+      const output = document.getElementById('resultOutput');
+      output.classList.remove('hidden');
+      output.className = `result-output result-panel ${type}`;
+      output.innerHTML = `
+        <div class="result-title">${type === 'success' ? '🏴‍☠️ Treasure Found!' : '💀 Not Quite, Matey!'}</div>
+        <p style="color: var(--text-secondary); margin-bottom: 8px;">${escHtml(message)}</p>
+        ${submission ? `
+          <div class="flex gap-md" style="font-size: 0.85rem;">
+            <span>Tests: ${submission.passedTests}/${submission.totalTests}</span>
+            <span>Score: ${submission.score} doubloons</span>
+            <span>Time: ${submission.executionTime}ms</span>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    // ============ REFRESH SCORE ============
+    async function refreshMyScore() {
+      try {
+        const me = await API('/api/participant/me');
+        myScore = me.totalScore || 0;
+        document.getElementById('playerScore').textContent = myScore;
+        document.getElementById('sideScore').textContent = myScore;
+      } catch (e) { /* ignore */ }
+    }
+
+    // ============ CHECK ACTIVE ROUND ON LOAD ============
+    async function checkActiveRound() {
+      try {
+        const data = await API('/api/challenges/active');
+        if (data.round && data.challenges && data.challenges.length > 0) {
+          roundInfo = data.round;
+          challenges = data.challenges;
+          roundEndTime = data.round.endTime;
+
+          // Calculate duration from remaining time
+          if (data.round.endTime) {
+            roundDuration = 45 * 60 * 1000; // default
+          }
+
+          // Update solved status
+          solvedSet.clear();
+          challenges.forEach(c => {
+            if (c.solved) solvedSet.add(c.id);
+          });
+
+          enterArena();
+        }
+        refreshMyScore();
+      } catch (e) { console.log('No active round'); }
+    }
+
+    // ============ UTILS ============
+    function toast(type, message) {
+      const container = document.getElementById('toastContainer');
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `
+        <span class="toast-icon">${icons[type] || '📢'}</span>
+        <span class="toast-message">${escHtml(message)}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+      `;
+      container.appendChild(t);
+      setTimeout(() => { if (t.parentElement) t.remove(); }, 6000);
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = '/';
+    }
+
+    // ============ INIT ============
+    checkActiveRound();
+  </script>
+</body>
+</html>
