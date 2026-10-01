@@ -62,17 +62,21 @@ fs.mkdirSync(TEMP_DIR, { recursive: true });
 // ============ PERSISTENCE ============
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
 
+let saveTimeout = null;
 function saveDB() {
-  const data = {
-    participants: Array.from(DB.participants.entries()),
-    challenges: Array.from(DB.challenges.entries()),
-    submissions: Array.from(DB.submissions.entries()),
-    rounds: DB.rounds,
-    activeRound: DB.activeRound
-  };
-  try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-  } catch (e) { console.error('Save error:', e.message); }
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(() => {
+    const data = {
+      participants: Array.from(DB.participants.entries()),
+      challenges: Array.from(DB.challenges.entries()),
+      submissions: Array.from(DB.submissions.entries()),
+      rounds: DB.rounds,
+      activeRound: DB.activeRound
+    };
+    fs.writeFile(DB_FILE, JSON.stringify(data, null, 2), (err) => {
+      if (err) console.error('Save error:', err.message);
+    });
+  }, 1000); // 1-second debounce
 }
 
 function loadDB() {
@@ -846,7 +850,7 @@ async function evaluateCode(code, language, testCases) {
 }
 
 function runCode(code, language, input) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     const fileId = uuidv4().substring(0, 8);
     let filename, command;
 
@@ -865,10 +869,10 @@ function runCode(code, language, input) {
         filename = path.join(TEMP_DIR, `${fileId}.c`);
         const cOut = path.join(TEMP_DIR, `${fileId}.exe`);
         // Compile then run
-        fs.writeFileSync(filename, code);
+        await fs.promises.writeFile(filename, code);
         const startC = Date.now();
         exec(`gcc "${filename}" -o "${cOut}" && "${cOut}"`, {
-          timeout: 15000, maxBuffer: 1024 * 1024,
+          timeout: 5000, maxBuffer: 1024 * 1024,
           cwd: TEMP_DIR
         }, (error, stdout, stderr) => {
           const executionTime = Date.now() - startC;
@@ -884,10 +888,10 @@ function runCode(code, language, input) {
       case 'c++':
         filename = path.join(TEMP_DIR, `${fileId}.cpp`);
         const cppOut = path.join(TEMP_DIR, `${fileId}.exe`);
-        fs.writeFileSync(filename, code);
+        await fs.promises.writeFile(filename, code);
         const startCpp = Date.now();
         exec(`g++ "${filename}" -o "${cppOut}" && "${cppOut}"`, {
-          timeout: 15000, maxBuffer: 1024 * 1024,
+          timeout: 5000, maxBuffer: 1024 * 1024,
           cwd: TEMP_DIR
         }, (error, stdout, stderr) => {
           const executionTime = Date.now() - startCpp;
@@ -903,10 +907,10 @@ function runCode(code, language, input) {
         filename = path.join(TEMP_DIR, `Main_${fileId}.java`);
         // Extract or use Main class
         const javaCode = code.replace(/public\s+class\s+\w+/, 'public class Main_' + fileId);
-        fs.writeFileSync(filename, javaCode);
+        await fs.promises.writeFile(filename, javaCode);
         const startJava = Date.now();
         exec(`javac "${filename}" && java -cp "${TEMP_DIR}" Main_${fileId}`, {
-          timeout: 15000, maxBuffer: 1024 * 1024,
+          timeout: 10000, maxBuffer: 1024 * 1024,
           cwd: TEMP_DIR
         }, (error, stdout, stderr) => {
           const executionTime = Date.now() - startJava;
@@ -923,11 +927,11 @@ function runCode(code, language, input) {
     }
 
     // For JS and Python
-    fs.writeFileSync(filename, code);
+    await fs.promises.writeFile(filename, code);
     const startTime = Date.now();
 
     const proc = exec(command, {
-      timeout: 10000,
+      timeout: 5000,
       maxBuffer: 1024 * 1024,
       cwd: TEMP_DIR
     }, (error, stdout, stderr) => {
