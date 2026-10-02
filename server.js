@@ -42,6 +42,9 @@ pgPool.query(`
 }).catch(err => console.error('PG Connect Error:', err.message));
 
 const app = express();
+global.lastDbError = 'Waiting for first insert...';
+app.get('/api/debug-db', (req, res) => res.json({ lastError: global.lastDbError, version: 2 }));
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
@@ -196,7 +199,11 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const result = await pgPool.query('INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission) VALUES ($1, $2, $3, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING', [id, cleanName, participant.teamName]);
     console.log(`[DB] Inserted participant "${cleanName}" into Supabase (rows: ${result.rowCount})`);
-  } catch(e) { console.error('[DB] PG insert error for', cleanName, ':', e.message); }
+    global.lastDbError = 'Insert success: ' + result.rowCount;
+  } catch(e) { 
+    global.lastDbError = e.message;
+    console.error('[DB] PG insert error for', cleanName, ':', e.message); 
+  }
 
   const token = uuidv4();
   sessions.set(token, { type: 'participant', id });
