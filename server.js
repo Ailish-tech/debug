@@ -16,7 +16,7 @@ const { generateChallenges, getPoolSize } = require('./challenge-bank');
 
 const { Client } = require('pg');
 const pgClient = new Client({
-  connectionString: 'postgresql://postgres:Bethelegend@21@db.uajhnbdaemscqaympogz.supabase.co:6543/postgres',
+  connectionString: 'postgresql://postgres:Bethelegend%4021@db.uajhnbdaemscqaympogz.supabase.co:6543/postgres',
   connectionTimeoutMillis: 10000,
   query_timeout: 10000
 });
