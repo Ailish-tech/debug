@@ -4,6 +4,8 @@
 //  "Fix the code or walk the plank!"
 // ================================================================
 
+const dns = require('node:dns');
+dns.setDefaultResultOrder('ipv4first');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
