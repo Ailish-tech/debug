@@ -1,5 +1,5 @@
-# Use an official Node runtime as a parent image (Bullseye has better support for compilers)
-FROM node:18-bullseye-slim
+# Use an official Node runtime as a parent image (Bookworm is the latest stable Debian)
+FROM node:20-bookworm-slim
 
 # Install compilers and interpreters (C/C++, Python, Java)
 RUN apt-get update && apt-get install -y \
