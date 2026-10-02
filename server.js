@@ -18,9 +18,9 @@ const { generateChallenges, getPoolSize } = require('./challenge-bank');
 
 const { Pool } = require('pg');
 const pgPool = new Pool({
-  host: 'db.uajhnbdaemscqaympogz.supabase.co',
+  host: 'aws-0-ap-northeast-1.pooler.supabase.com',
   port: 6543,
-  user: 'postgres',
+  user: 'postgres.uajhnbdaemscqaympogz',
   password: 'Bethelegend@21',
   database: 'postgres',
   ssl: { rejectUnauthorized: false },
@@ -45,7 +45,7 @@ pgPool.query(`
 
 const app = express();
 global.lastDbError = 'Waiting for first insert...';
-app.get('/api/debug-db', (req, res) => res.json({ lastError: global.lastDbError, version: 2 }));
+app.get('/api/debug-db', (req, res) => res.json({ lastError: global.lastDbError, version: 3 }));
 
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
