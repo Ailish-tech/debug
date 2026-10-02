@@ -756,33 +756,12 @@ app.post('/api/submissions', authenticate, async (req, res) => {
 
     DB.submissions.set(submission.id, submission);
 
-    // Update Postgres immediately
-    try {
-      if (allPassed) {
-        await pgPool.query('UPDATE participant_scores SET score = score + $1, solved = solved + 1, total_attempts = total_attempts + 1, last_submission = $2 WHERE id = $3', [score, Date.now(), req.session.id]);
-      } else {
-        await pgPool.query('UPDATE participant_scores SET total_attempts = total_attempts + 1, last_submission = $1 WHERE id = $2', [Date.now(), req.session.id]);
-      }
-    } catch (err) { console.error('PG Update error:', err); }
-
     // Keep memory in sync
     if (allPassed) {
       recalculateScores();
     }
 
-    saveDB();
-
-    // Notify admin
-    const participant = DB.participants.get(req.session.id);
-    io.to('admin-room').emit('submission:new', {
-      ...submission,
-      participantName: participant?.name,
-      challengeTitle: challenge.title
-    });
-
-    // Broadcast new leaderboard
-    broadcastLeaderboard();
-
+    // === RESPOND IMMEDIATELY ===
     res.json({
       submission: {
         id: submission.id,
@@ -798,6 +777,28 @@ app.post('/api/submissions', authenticate, async (req, res) => {
         ? `🏴‍☠️ Treasure found! All ${totalTests} test cases passed! +${score} doubloons!`
         : `💀 ${passedCount}/${totalTests} tests passed. Debug harder, matey!`,
       attemptsRemaining: round.maxAttempts - attemptNumber
+    });
+
+    // === BACKGROUND: DB update, save, notify (non-blocking) ===
+    setImmediate(async () => {
+      try {
+        if (allPassed) {
+          await pgPool.query('UPDATE participant_scores SET score = score + $1, solved = solved + 1, total_attempts = total_attempts + 1, last_submission = $2 WHERE id = $3', [score, Date.now(), req.session.id]);
+        } else {
+          await pgPool.query('UPDATE participant_scores SET total_attempts = total_attempts + 1, last_submission = $1 WHERE id = $2', [Date.now(), req.session.id]);
+        }
+      } catch (err) { console.error('PG Update error:', err.message); }
+
+      saveDB();
+
+      const participant = DB.participants.get(req.session.id);
+      io.to('admin-room').emit('submission:new', {
+        ...submission,
+        participantName: participant?.name,
+        challengeTitle: challenge.title
+      });
+
+      broadcastLeaderboard();
     });
 
   } catch (error) {
@@ -922,148 +923,146 @@ function recalculateScores() {
 // ================================================================
 
 async function evaluateCode(code, language, testCases) {
-  const results = [];
+  const fileId = uuidv4().substring(0, 8);
+  const lang = language.toLowerCase();
+  let executableCmd, sourceFile, compiledFiles = [];
 
-  for (const tc of testCases) {
-    try {
-      const result = await runCode(code, language, tc.input || '');
-      const expected = (tc.expectedOutput || tc.output || '').trim().replace(/\r\n/g, '\n');
-      const actual = result.stdout.trim().replace(/\r\n/g, '\n');
-      const passed = actual === expected;
+  try {
+    // === STEP 1: Write source & compile ONCE ===
+    switch (lang) {
+      case 'javascript':
+      case 'js': {
+        sourceFile = path.join(TEMP_DIR, `${fileId}.js`);
+        await fs.promises.writeFile(sourceFile, code);
+        compiledFiles.push(sourceFile);
+        executableCmd = (input) => ({ cmd: 'node', args: [sourceFile], input });
+        break;
+      }
+      case 'python':
+      case 'py': {
+        sourceFile = path.join(TEMP_DIR, `${fileId}.py`);
+        await fs.promises.writeFile(sourceFile, code);
+        compiledFiles.push(sourceFile);
+        executableCmd = (input) => ({ cmd: 'python3', args: [sourceFile], input });
+        break;
+      }
+      case 'c': {
+        sourceFile = path.join(TEMP_DIR, `${fileId}.c`);
+        const binFile = path.join(TEMP_DIR, `${fileId}`);
+        await fs.promises.writeFile(sourceFile, code);
+        compiledFiles.push(sourceFile, binFile);
+        // Compile once with optimizations
+        const compileErr = await compileSource('gcc', [sourceFile, '-O2', '-o', binFile]);
+        if (compileErr) {
+          return testCases.map(tc => ({ passed: false, output: '', expected: (tc.expectedOutput || tc.output || '').trim(), error: 'Compilation Error: ' + compileErr, executionTime: 0 }));
+        }
+        executableCmd = (input) => ({ cmd: binFile, args: [], input });
+        break;
+      }
+      case 'cpp':
+      case 'c++': {
+        sourceFile = path.join(TEMP_DIR, `${fileId}.cpp`);
+        const binFile = path.join(TEMP_DIR, `${fileId}`);
+        await fs.promises.writeFile(sourceFile, code);
+        compiledFiles.push(sourceFile, binFile);
+        const compileErr = await compileSource('g++', [sourceFile, '-O2', '-o', binFile]);
+        if (compileErr) {
+          return testCases.map(tc => ({ passed: false, output: '', expected: (tc.expectedOutput || tc.output || '').trim(), error: 'Compilation Error: ' + compileErr, executionTime: 0 }));
+        }
+        executableCmd = (input) => ({ cmd: binFile, args: [], input });
+        break;
+      }
+      case 'java': {
+        const className = `Main_${fileId}`;
+        sourceFile = path.join(TEMP_DIR, `${className}.java`);
+        const javaCode = code.replace(/public\s+class\s+\w+/, 'public class ' + className);
+        await fs.promises.writeFile(sourceFile, javaCode);
+        compiledFiles.push(sourceFile, path.join(TEMP_DIR, `${className}.class`));
+        const compileErr = await compileSource('javac', [sourceFile]);
+        if (compileErr) {
+          return testCases.map(tc => ({ passed: false, output: '', expected: (tc.expectedOutput || tc.output || '').trim(), error: 'Compilation Error: ' + compileErr, executionTime: 0 }));
+        }
+        executableCmd = (input) => ({ cmd: 'java', args: ['-cp', TEMP_DIR, className], input });
+        break;
+      }
+      default:
+        throw new Error(`Unsupported language: ${language}`);
+    }
 
-      results.push({
-        passed,
-        output: actual,
-        expected,
-        error: result.stderr || null,
-        executionTime: result.executionTime
-      });
-    } catch (error) {
-      results.push({
-        passed: false,
-        output: '',
-        expected: (tc.expectedOutput || tc.output || '').trim(),
-        error: error.message,
-        executionTime: 0
-      });
+    // === STEP 2: Run ALL test cases in parallel ===
+    const results = await Promise.all(
+      testCases.map(tc => runTestCase(executableCmd, tc))
+    );
+    return results;
+
+  } finally {
+    // === STEP 3: Cleanup all files ===
+    for (const f of compiledFiles) {
+      try { await fs.promises.unlink(f); } catch (_) {}
     }
   }
-
-  return results;
 }
 
-function runCode(code, language, input) {
-  return new Promise(async (resolve, reject) => {
-    const fileId = uuidv4().substring(0, 8);
-    let filename, command;
-
-    switch (language.toLowerCase()) {
-      case 'javascript':
-      case 'js':
-        filename = path.join(TEMP_DIR, `${fileId}.js`);
-        command = `node "${filename}"`;
-        break;
-      case 'python':
-      case 'py':
-        filename = path.join(TEMP_DIR, `${fileId}.py`);
-        command = `python "${filename}"`;
-        break;
-      case 'c':
-        filename = path.join(TEMP_DIR, `${fileId}.c`);
-        const cOut = path.join(TEMP_DIR, `${fileId}.exe`);
-        // Compile then run
-        await fs.promises.writeFile(filename, code);
-        const startC = Date.now();
-        exec(`gcc "${filename}" -o "${cOut}" && "${cOut}"`, {
-          timeout: 5000, maxBuffer: 1024 * 1024,
-          cwd: TEMP_DIR
-        }, (error, stdout, stderr) => {
-          const executionTime = Date.now() - startC;
-          cleanup(filename, cOut);
-          if (error && !stdout) {
-            resolve({ stdout: '', stderr: stderr || error.message, executionTime });
-          } else {
-            resolve({ stdout: stdout || '', stderr: stderr || '', executionTime });
-          }
-        });
-        return;
-      case 'cpp':
-      case 'c++':
-        filename = path.join(TEMP_DIR, `${fileId}.cpp`);
-        const cppOut = path.join(TEMP_DIR, `${fileId}.exe`);
-        await fs.promises.writeFile(filename, code);
-        const startCpp = Date.now();
-        exec(`g++ "${filename}" -o "${cppOut}" && "${cppOut}"`, {
-          timeout: 5000, maxBuffer: 1024 * 1024,
-          cwd: TEMP_DIR
-        }, (error, stdout, stderr) => {
-          const executionTime = Date.now() - startCpp;
-          cleanup(filename, cppOut);
-          if (error && !stdout) {
-            resolve({ stdout: '', stderr: stderr || error.message, executionTime });
-          } else {
-            resolve({ stdout: stdout || '', stderr: stderr || '', executionTime });
-          }
-        });
-        return;
-      case 'java':
-        filename = path.join(TEMP_DIR, `Main_${fileId}.java`);
-        // Extract or use Main class
-        const javaCode = code.replace(/public\s+class\s+\w+/, 'public class Main_' + fileId);
-        await fs.promises.writeFile(filename, javaCode);
-        const startJava = Date.now();
-        exec(`javac "${filename}" && java -cp "${TEMP_DIR}" Main_${fileId}`, {
-          timeout: 10000, maxBuffer: 1024 * 1024,
-          cwd: TEMP_DIR
-        }, (error, stdout, stderr) => {
-          const executionTime = Date.now() - startJava;
-          cleanup(filename, path.join(TEMP_DIR, `Main_${fileId}.class`));
-          if (error && !stdout) {
-            resolve({ stdout: '', stderr: stderr || error.message, executionTime });
-          } else {
-            resolve({ stdout: stdout || '', stderr: stderr || '', executionTime });
-          }
-        });
-        return;
-      default:
-        return reject(new Error(`Unsupported language: ${language}`));
-    }
-
-    // For JS and Python
-    await fs.promises.writeFile(filename, code);
-    const startTime = Date.now();
-
-    const proc = exec(command, {
-      timeout: 5000,
-      maxBuffer: 1024 * 1024,
-      cwd: TEMP_DIR
-    }, (error, stdout, stderr) => {
-      const executionTime = Date.now() - startTime;
-      cleanup(filename);
-
+function compileSource(compiler, args) {
+  return new Promise(resolve => {
+    const { execFile } = require('child_process');
+    execFile(compiler, args, { timeout: 15000, cwd: TEMP_DIR }, (error, stdout, stderr) => {
       if (error) {
-        if (error.killed) {
-          resolve({ stdout: '', stderr: 'Execution timed out (10s limit)', executionTime });
-        } else {
-          resolve({ stdout: stdout || '', stderr: stderr || error.message, executionTime });
-        }
+        resolve(stderr || error.message);
       } else {
-        resolve({ stdout: stdout || '', stderr: stderr || '', executionTime });
+        resolve(null); // success
       }
     });
-
-    // Send input if provided
-    if (input) {
-      proc.stdin.write(input);
-      proc.stdin.end();
-    }
   });
 }
 
-function cleanup(...files) {
-  for (const f of files) {
-    try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (e) { /* ignore */ }
-  }
+function runTestCase(executableCmd, tc) {
+  return new Promise(resolve => {
+    const { cmd, args, input } = executableCmd(tc.input || '');
+    const { spawn } = require('child_process');
+    const startTime = Date.now();
+    const expected = (tc.expectedOutput || tc.output || '').trim().replace(/\r\n/g, '\n');
+
+    const proc = spawn(cmd, args, {
+      cwd: TEMP_DIR,
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+
+    let stdout = '', stderr = '';
+    proc.stdout.on('data', d => { stdout += d; });
+    proc.stderr.on('data', d => { stderr += d; });
+
+    // Send input immediately and close stdin
+    if (tc.input) {
+      proc.stdin.write(tc.input);
+    }
+    proc.stdin.end();
+
+    proc.on('close', (code) => {
+      const executionTime = Date.now() - startTime;
+      const actual = stdout.trim().replace(/\r\n/g, '\n');
+      const passed = actual === expected;
+
+      resolve({
+        passed,
+        output: actual,
+        expected,
+        error: stderr || (code !== 0 ? `Process exited with code ${code}` : null),
+        executionTime
+      });
+    });
+
+    proc.on('error', (err) => {
+      resolve({
+        passed: false,
+        output: '',
+        expected,
+        error: err.message,
+        executionTime: Date.now() - startTime
+      });
+    });
+  });
 }
 
 // ================================================================
