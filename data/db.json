@@ -508,7 +508,7 @@
       "id": 1,
       "name": "The First Fix",
       "difficulty": "Easy – Moderate",
-      "status": "active",
+      "status": "ended",
       "challengeIds": [
         "dc688dfe-08a3-4df1-a576-be7c04ff3429",
         "61e72943-46f1-42f5-9d0f-9bd11cb1f6cb",
@@ -545,5 +545,5 @@
       "maxAttempts": 4
     }
   },
-  "activeRound": 1
+  "activeRound": null
 }

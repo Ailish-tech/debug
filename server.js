@@ -14,6 +14,26 @@ const fs = require('fs');
 const path = require('path');
 const { generateChallenges, getPoolSize } = require('./challenge-bank');
 
+const { Client } = require('pg');
+const pgClient = new Client({
+  connectionString: 'postgresql://postgres:Bethelegend@21@db.uajhnbdaemscqaympogz.supabase.co:5432/postgres'
+});
+
+pgClient.connect().then(() => {
+  console.log('Connected to PostgreSQL DB');
+  return pgClient.query(`
+    CREATE TABLE IF NOT EXISTS participant_scores (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255),
+      team_name VARCHAR(255),
+      score INT,
+      solved INT,
+      total_attempts INT,
+      last_submission BIGINT
+    )
+  `);
+}).catch(err => console.error('PG Connect Error:', err));
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -94,6 +114,21 @@ function loadDB() {
 }
 
 loadDB();
+setTimeout(async () => {
+  if (typeof calculateLeaderboard === 'function') {
+    const lb = calculateLeaderboard();
+    for (const entry of lb) {
+      try {
+        await pgClient.query(`
+          INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+          ON CONFLICT (id) DO NOTHING
+        `, [entry.id, entry.name, entry.teamName, entry.score, entry.solved, entry.totalAttempts, entry.lastSubmission]);
+      } catch(e) {}
+    }
+    if (typeof broadcastLeaderboard === 'function') broadcastLeaderboard();
+  }
+}, 2000);
 
 // ============ AUTH HELPERS ============
 function authenticate(req, res, next) {
@@ -129,7 +164,7 @@ app.post('/api/auth/admin-login', (req, res) => {
   res.json({ token, type: 'admin', message: 'Welcome aboard, Captain!' });
 });
 
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const { name, teamName } = req.body;
   if (!name || name.trim().length < 2) {
     return res.status(400).json({ error: 'Every pirate needs a proper name (min 2 chars)!' });
@@ -151,11 +186,16 @@ app.post('/api/auth/register', (req, res) => {
   };
   DB.participants.set(id, participant);
 
+  try {
+    await pgClient.query('INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission) VALUES ($1, $2, $3, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING', [id, cleanName, participant.teamName]);
+  } catch(e) { console.error('PG insert error', e); }
+
   const token = uuidv4();
   sessions.set(token, { type: 'participant', id });
 
   io.to('admin-room').emit('participant:joined', participant);
   saveDB();
+  broadcastLeaderboard();
 
   res.json({ token, type: 'participant', participant });
 });
@@ -519,7 +559,7 @@ app.get('/api/admin/submissions', authenticate, adminOnly, (req, res) => {
 });
 
 // Admin reset everything
-app.post('/api/admin/reset-all', authenticate, adminOnly, (req, res) => {
+app.post('/api/admin/reset-all', authenticate, adminOnly, async (req, res) => {
   DB.participants.clear();
   DB.challenges.clear();
   DB.submissions.clear();
@@ -530,6 +570,10 @@ app.post('/api/admin/reset-all', authenticate, adminOnly, (req, res) => {
   Object.values(roundTimers).forEach(t => clearInterval(t));
   roundTimers = {};
   saveDB();
+  try {
+    await pgClient.query('TRUNCATE TABLE participant_scores');
+  } catch (err) { console.error('Error truncating table:', err); }
+  broadcastLeaderboard();
   res.json({ message: 'All data purged! Fresh start.' });
 });
 
@@ -695,7 +739,16 @@ app.post('/api/submissions', authenticate, async (req, res) => {
 
     DB.submissions.set(submission.id, submission);
 
-    // Update participant score
+    // Update Postgres immediately
+    try {
+      if (allPassed) {
+        await pgClient.query('UPDATE participant_scores SET score = score + $1, solved = solved + 1, total_attempts = total_attempts + 1, last_submission = $2 WHERE id = $3', [score, Date.now(), req.session.id]);
+      } else {
+        await pgClient.query('UPDATE participant_scores SET total_attempts = total_attempts + 1, last_submission = $1 WHERE id = $2', [Date.now(), req.session.id]);
+      }
+    } catch (err) { console.error('PG Update error:', err); }
+
+    // Keep memory in sync
     if (allPassed) {
       recalculateScores();
     }
@@ -710,8 +763,8 @@ app.post('/api/submissions', authenticate, async (req, res) => {
       challengeTitle: challenge.title
     });
 
-    // Update leaderboard
-    if (allPassed) broadcastLeaderboard();
+    // Broadcast new leaderboard
+    broadcastLeaderboard();
 
     res.json({
       submission: {
@@ -750,8 +803,27 @@ app.get('/api/submissions/mine', authenticate, (req, res) => {
 
 // ============ LEADERBOARD ============
 
-app.get('/api/leaderboard', (req, res) => {
-  res.json(calculateLeaderboard());
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const result = await pgClient.query('SELECT * FROM participant_scores ORDER BY score DESC, last_submission ASC');
+    if (result.rows.length === 0) {
+      return res.json(calculateLeaderboard());
+    }
+    const board = result.rows.map((row, i) => ({
+      id: row.id,
+      name: row.name,
+      teamName: row.team_name,
+      score: row.score,
+      solved: row.solved,
+      totalAttempts: row.total_attempts,
+      lastSubmission: Number(row.last_submission),
+      rank: i + 1
+    }));
+    res.json(board);
+  } catch (err) {
+    console.error('PG Fetch error:', err);
+    res.json(calculateLeaderboard());
+  }
 });
 
 function calculateLeaderboard() {
@@ -796,9 +868,23 @@ function calculateLeaderboard() {
   return board.map((entry, i) => ({ ...entry, rank: i + 1 }));
 }
 
-function broadcastLeaderboard() {
-  const leaderboard = calculateLeaderboard();
-  io.emit('leaderboard:update', leaderboard);
+async function broadcastLeaderboard() {
+  try {
+    const result = await pgClient.query('SELECT * FROM participant_scores ORDER BY score DESC, last_submission ASC');
+    const board = result.rows.map((row, i) => ({
+      id: row.id,
+      name: row.name,
+      teamName: row.team_name,
+      score: row.score,
+      solved: row.solved,
+      totalAttempts: row.total_attempts,
+      lastSubmission: Number(row.last_submission),
+      rank: i + 1
+    }));
+    io.emit('leaderboard:update', board);
+  } catch (err) {
+    console.error('Broadcast PG error:', err);
+  }
 }
 
 function recalculateScores() {
