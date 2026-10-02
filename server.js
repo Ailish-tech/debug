@@ -14,27 +14,27 @@ const fs = require('fs');
 const path = require('path');
 const { generateChallenges, getPoolSize } = require('./challenge-bank');
 
-const { Client } = require('pg');
-const pgClient = new Client({
+const { Pool } = require('pg');
+const pgPool = new Pool({
   connectionString: 'postgresql://postgres:Bethelegend%4021@db.uajhnbdaemscqaympogz.supabase.co:6543/postgres',
   connectionTimeoutMillis: 10000,
-  query_timeout: 10000
+  idleTimeoutMillis: 30000,
+  max: 5
 });
 
-pgClient.connect().then(() => {
-  console.log('Connected to PostgreSQL DB');
-  return pgClient.query(`
-    CREATE TABLE IF NOT EXISTS participant_scores (
-      id VARCHAR(255) PRIMARY KEY,
-      name VARCHAR(255),
-      team_name VARCHAR(255),
-      score INT,
-      solved INT,
-      total_attempts INT,
-      last_submission BIGINT
-    )
-  `);
-}).catch(err => console.error('PG Connect Error:', err));
+pgPool.query(`
+  CREATE TABLE IF NOT EXISTS participant_scores (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255),
+    team_name VARCHAR(255),
+    score INT,
+    solved INT,
+    total_attempts INT,
+    last_submission BIGINT
+  )
+`).then(() => {
+  console.log('Connected to PostgreSQL DB & table ready');
+}).catch(err => console.error('PG Connect Error:', err.message));
 
 const app = express();
 const server = http.createServer(app);
@@ -121,7 +121,7 @@ setTimeout(async () => {
     const lb = calculateLeaderboard();
     for (const entry of lb) {
       try {
-        await pgClient.query(`
+        await pgPool.query(`
           INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
           ON CONFLICT (id) DO NOTHING
@@ -189,7 +189,7 @@ app.post('/api/auth/register', async (req, res) => {
   DB.participants.set(id, participant);
 
   try {
-    await pgClient.query('INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission) VALUES ($1, $2, $3, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING', [id, cleanName, participant.teamName]);
+    await pgPool.query('INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission) VALUES ($1, $2, $3, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING', [id, cleanName, participant.teamName]);
   } catch(e) { console.error('PG insert error', e); }
 
   const token = uuidv4();
@@ -573,7 +573,7 @@ app.post('/api/admin/reset-all', authenticate, adminOnly, async (req, res) => {
   roundTimers = {};
   saveDB();
   try {
-    await pgClient.query('TRUNCATE TABLE participant_scores');
+    await pgPool.query('TRUNCATE TABLE participant_scores');
   } catch (err) { console.error('Error truncating table:', err); }
   broadcastLeaderboard();
   res.json({ message: 'All data purged! Fresh start.' });
@@ -744,9 +744,9 @@ app.post('/api/submissions', authenticate, async (req, res) => {
     // Update Postgres immediately
     try {
       if (allPassed) {
-        await pgClient.query('UPDATE participant_scores SET score = score + $1, solved = solved + 1, total_attempts = total_attempts + 1, last_submission = $2 WHERE id = $3', [score, Date.now(), req.session.id]);
+        await pgPool.query('UPDATE participant_scores SET score = score + $1, solved = solved + 1, total_attempts = total_attempts + 1, last_submission = $2 WHERE id = $3', [score, Date.now(), req.session.id]);
       } else {
-        await pgClient.query('UPDATE participant_scores SET total_attempts = total_attempts + 1, last_submission = $1 WHERE id = $2', [Date.now(), req.session.id]);
+        await pgPool.query('UPDATE participant_scores SET total_attempts = total_attempts + 1, last_submission = $1 WHERE id = $2', [Date.now(), req.session.id]);
       }
     } catch (err) { console.error('PG Update error:', err); }
 
@@ -807,7 +807,7 @@ app.get('/api/submissions/mine', authenticate, (req, res) => {
 
 app.get('/api/leaderboard', async (req, res) => {
   try {
-    const result = await pgClient.query('SELECT * FROM participant_scores ORDER BY score DESC, last_submission ASC');
+    const result = await pgPool.query('SELECT * FROM participant_scores ORDER BY score DESC, last_submission ASC');
     if (result.rows.length === 0) {
       return res.json(calculateLeaderboard());
     }
@@ -872,7 +872,7 @@ function calculateLeaderboard() {
 
 async function broadcastLeaderboard() {
   try {
-    const result = await pgClient.query('SELECT * FROM participant_scores ORDER BY score DESC, last_submission ASC');
+    const result = await pgPool.query('SELECT * FROM participant_scores ORDER BY score DESC, last_submission ASC');
     const board = result.rows.map((row, i) => ({
       id: row.id,
       name: row.name,
