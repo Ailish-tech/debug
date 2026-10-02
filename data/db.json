@@ -1,26 +1,5 @@
 {
-  "participants": [
-    [
-      "10797617-84e4-49a8-a8fc-cbd903ba6c50",
-      {
-        "id": "10797617-84e4-49a8-a8fc-cbd903ba6c50",
-        "name": "jkk",
-        "teamName": "Solo Pirate",
-        "createdAt": 1790872370067,
-        "totalScore": 0
-      }
-    ],
-    [
-      "b9df301c-1074-4f56-a148-c8711fcc221f",
-      {
-        "id": "b9df301c-1074-4f56-a148-c8711fcc221f",
-        "name": "er",
-        "teamName": "Solo Pirate",
-        "createdAt": 1790873881229,
-        "totalScore": 145
-      }
-    ]
-  ],
+  "participants": [],
   "challenges": [
     [
       "dc688dfe-08a3-4df1-a576-be7c04ff3429",
@@ -423,86 +402,7 @@
       }
     ]
   ],
-  "submissions": [
-    [
-      "c915d66c-9f55-4dfb-b143-437b19288651",
-      {
-        "id": "c915d66c-9f55-4dfb-b143-437b19288651",
-        "participantId": "10797617-84e4-49a8-a8fc-cbd903ba6c50",
-        "challengeId": "1b906f9c-95aa-49c3-8dc3-90b21c683956",
-        "code": "#include <stdio.h>\n\n// Extracted logic into a reusable, testable function\nvoid print_multiplication_table(int base_number, int limit) {\n    // Basic input validation (a must in production)\n    if (limit < 0) {\n        fprintf(stderr, \"Error: Limit cannot be negative.\\n\");\n        return;\n    }\n    \n    for (int i = 0; i < limit; i++) {\n        printf(\"%d x %d = %d\\n\", base_number, i, base_number * i);\n    }\n}\n\nint main() {\n    // Configuration at the top, variables declare intent\n    const int TARGET_NUMBER = 7;\n    const int MULTIPLIER_LIMIT = 5;\n\n    // Function call makes main() clean and readable\n    print_multiplication_table(TARGET_NUMBER, MULTIPLIER_LIMIT);\n\n    return 0;\n}",
-        "attempt": 1,
-        "status": "failed",
-        "testResults": [
-          {
-            "testCase": 1,
-            "passed": false,
-            "expected": "7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35",
-            "got": "7 x 0 = 0\r\n7 x 1 = 7\r\n7 x 2 = 14\r\n7 x 3 = 21\r\n7 x 4 = 28",
-            "error": null,
-            "executionTime": 13207
-          }
-        ],
-        "passedTests": 0,
-        "totalTests": 1,
-        "executionTime": 13207,
-        "score": 0,
-        "timestamp": 1790872482826
-      }
-    ],
-    [
-      "6ddf6345-3f5d-44da-9c90-3747d2de1bd7",
-      {
-        "id": "6ddf6345-3f5d-44da-9c90-3747d2de1bd7",
-        "participantId": "10797617-84e4-49a8-a8fc-cbd903ba6c50",
-        "challengeId": "1b906f9c-95aa-49c3-8dc3-90b21c683956",
-        "code": "#include <stdio.h>\nint main() {\n    int n = 7;\n    for (int i = 1; i <=5; i++) {\n        printf(\"%d x %d = %d\\n\", n, i, n * i);\n    }\n    return 0;\n}",
-        "attempt": 2,
-        "status": "failed",
-        "testResults": [
-          {
-            "testCase": 1,
-            "passed": false,
-            "expected": "7 x 1 = 7\n7 x 2 = 14\n7 x 3 = 21\n7 x 4 = 28\n7 x 5 = 35",
-            "got": "7 x 1 = 7\r\n7 x 2 = 14\r\n7 x 3 = 21\r\n7 x 4 = 28\r\n7 x 5 = 35",
-            "error": null,
-            "executionTime": 1456
-          }
-        ],
-        "passedTests": 0,
-        "totalTests": 1,
-        "executionTime": 1456,
-        "score": 0,
-        "timestamp": 1790872624878
-      }
-    ],
-    [
-      "7d78ff47-372a-4d79-b2e5-a5de356a00e2",
-      {
-        "id": "7d78ff47-372a-4d79-b2e5-a5de356a00e2",
-        "participantId": "b9df301c-1074-4f56-a148-c8711fcc221f",
-        "challengeId": "dc688dfe-08a3-4df1-a576-be7c04ff3429",
-        "code": "#include <stdio.h>\n\nint main() {\n    int arr[] = {3, 7, 2, 9, 5};\n    int max = arr[0];\n    \n    for (int i = 1; i < 5; i++) {\n        if (arr[i] > max) {\n            max = arr[i];\n        }\n    }\n    \n    printf(\"Maximum = %d\\n\", max);\n    return 0;\n}",
-        "attempt": 1,
-        "status": "passed",
-        "testResults": [
-          {
-            "testCase": 1,
-            "passed": true,
-            "expected": "Maximum = 9",
-            "got": "Maximum = 9",
-            "error": null,
-            "executionTime": 1690
-          }
-        ],
-        "passedTests": 1,
-        "totalTests": 1,
-        "executionTime": 1690,
-        "score": 145,
-        "timestamp": 1790874096114
-      }
-    ]
-  ],
+  "submissions": [],
   "rounds": {
     "1": {
       "id": 1,
