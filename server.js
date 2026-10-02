@@ -16,7 +16,12 @@ const { generateChallenges, getPoolSize } = require('./challenge-bank');
 
 const { Pool } = require('pg');
 const pgPool = new Pool({
-  connectionString: 'postgresql://postgres:Bethelegend%4021@db.uajhnbdaemscqaympogz.supabase.co:6543/postgres',
+  host: 'db.uajhnbdaemscqaympogz.supabase.co',
+  port: 6543,
+  user: 'postgres',
+  password: 'Bethelegend@21',
+  database: 'postgres',
+  ssl: { rejectUnauthorized: false },
   connectionTimeoutMillis: 10000,
   idleTimeoutMillis: 30000,
   max: 5
@@ -189,8 +194,9 @@ app.post('/api/auth/register', async (req, res) => {
   DB.participants.set(id, participant);
 
   try {
-    await pgPool.query('INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission) VALUES ($1, $2, $3, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING', [id, cleanName, participant.teamName]);
-  } catch(e) { console.error('PG insert error', e); }
+    const result = await pgPool.query('INSERT INTO participant_scores (id, name, team_name, score, solved, total_attempts, last_submission) VALUES ($1, $2, $3, 0, 0, 0, 0) ON CONFLICT (id) DO NOTHING', [id, cleanName, participant.teamName]);
+    console.log(`[DB] Inserted participant "${cleanName}" into Supabase (rows: ${result.rowCount})`);
+  } catch(e) { console.error('[DB] PG insert error for', cleanName, ':', e.message); }
 
   const token = uuidv4();
   sessions.set(token, { type: 'participant', id });
