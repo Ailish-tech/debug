@@ -58,10 +58,7 @@
           <span class="sidebar-icon">👥</span> Crew Members
           <span class="sidebar-count" id="sidebarCrewCount">0</span>
         </div>
-        <div class="sidebar-item" data-section="submissions" onclick="showSection('submissions')">
-          <span class="sidebar-icon">📜</span> Submissions
-          <span class="sidebar-count" id="sidebarSubCount">0</span>
-        </div>
+
       </div>
       <div class="sidebar-section" style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
         <div class="sidebar-label">Quick Actions</div>
@@ -302,33 +299,6 @@
         </div>
       </section>
 
-      <!-- ============ SUBMISSIONS SECTION ============ -->
-      <section id="section-submissions" class="hidden">
-        <div class="page-header">
-          <h2>📜 All Submissions</h2>
-          <button class="btn btn-sm" onclick="loadSubmissions()">🔄 Refresh</button>
-        </div>
-
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Pirate</th>
-                <th>Challenge</th>
-                <th>Attempt</th>
-                <th>Status</th>
-                <th>Tests</th>
-                <th>Score</th>
-                <th>Time (ms)</th>
-                <th>Submitted</th>
-              </tr>
-            </thead>
-            <tbody id="submissionTable">
-              <tr><td colspan="8" class="text-center text-muted" style="padding:40px;">No submissions yet</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
 
     </main>
   </div>
@@ -499,7 +469,6 @@
         loadAIPoolInfo();
       }
       if (name === 'participants') loadParticipants();
-      if (name === 'submissions') loadSubmissions();
       if (name === 'rounds') loadRounds();
     }
 
@@ -579,7 +548,6 @@
 
       const count = feed.querySelectorAll('.submission-item').length;
       document.getElementById('liveFeedCount').textContent = count + ' submissions';
-      document.getElementById('sidebarSubCount').textContent = count;
     }
 
     // ============ CHALLENGES ============
@@ -877,30 +845,6 @@
       } catch (err) { toast('error', err.message); }
     }
 
-    // ============ SUBMISSIONS ============
-    async function loadSubmissions() {
-      try {
-        const subs = await API('/api/admin/submissions');
-        const tbody = document.getElementById('submissionTable');
-        if (subs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:40px;">No submissions yet</td></tr>';
-          return;
-        }
-        tbody.innerHTML = subs.map(s => `
-          <tr>
-            <td><strong>${escHtml(s.participantName)}</strong></td>
-            <td>${escHtml(s.challengeTitle)}</td>
-            <td>#${s.attempt}</td>
-            <td><span class="badge ${s.status === 'passed' ? 'badge-success' : 'badge-danger'}">${s.status}</span></td>
-            <td>${s.passedTests || 0}/${s.totalTests || 0}</td>
-            <td class="fw-bold text-gold">${s.score || 0}</td>
-            <td class="mono-font" style="font-size:0.8rem;">${s.executionTime || 0}ms</td>
-            <td class="text-muted" style="font-size:0.8rem;">${new Date(s.timestamp).toLocaleTimeString()}</td>
-          </tr>
-        `).join('');
-        document.getElementById('sidebarSubCount').textContent = subs.length;
-      } catch (err) { toast('error', err.message); }
-    }
 
     // ============ ANNOUNCEMENTS ============
     function sendAnnouncement() {
